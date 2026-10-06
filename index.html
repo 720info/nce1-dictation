@@ -38,7 +38,24 @@
   <header class="topbar">
     <div class="topbar-in">
       <div class="brand">
-        <span class="brand-mark">N<em>1</em></span>
+        <!-- 与 App 图标同一套图形：渐变方块 + 白色圆角内块 + 字母 A + 绿勾。
+             这里用矢量复刻，任意缩放都清晰，且不依赖额外的图片请求。 -->
+        <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="bmGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#4e6af3"/>
+              <stop offset="1" stop-color="#6545db"/>
+            </linearGradient>
+          </defs>
+          <rect width="48" height="48" rx="10.3" fill="url(#bmGrad)"/>
+          <rect x="9.66" y="9.66" width="28.69" height="28.69" rx="6.1" fill="#fff"/>
+          <path fill="#3a4ab2" fill-rule="evenodd"
+                d="M22.61 16.88 25.18 16.88 30.71 31.03 28.42 31.03 26.77 26.81 21.03 26.81 19.38 31.03 17.08 31.03Z
+                   M23.90 19.47 25.86 24.47 21.94 24.47Z"/>
+          <circle cx="35.72" cy="35.72" r="6.14" fill="#37b24d"/>
+          <path d="M32.6 36.4 34.85 38.2 39.1 33.75" fill="none" stroke="#fff"
+                stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
         <span class="brand-text">单词听写</span>
       </div>
       <button id="btn-settings" class="icon-btn" type="button" aria-label="设置">
@@ -144,7 +161,7 @@
 
       <!-- 答案显示区：故意不使用 input/textarea，系统输入法无法唤起 -->
       <div class="answer" id="answer" aria-live="polite">
-        <div class="answer-text" id="answer-text"><span class="caret"></span></div>
+        <div class="answer-text" id="answer-text"></div>
       </div>
 
       <div class="feedback" id="feedback" hidden>

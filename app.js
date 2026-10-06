@@ -288,25 +288,28 @@
     $('feedback').className = 'feedback';
     $('btn-submit').hidden = false;
     $('btn-next').hidden = true;
-    $('answer').className = 'answer' + (session.input ? '' : ' is-empty');
+    $('answer').classList.remove('is-ok', 'is-err');
     $('quiz-count').textContent = (session.resolved + 1) + ' / ' + session.total;
-    $('quiz-bar-fill').style.width = (session.resolved / session.total * 100) + '%';
+    paintBar();
     renderAnswer();
+  }
+
+  /** 进度条：走 transform 而不是 width，避免每帧重新布局 */
+  function paintBar() {
+    $('quiz-bar-fill').style.transform = 'scaleX(' + (session.resolved / session.total) + ')';
   }
 
   function renderAnswer() {
     var t = session.input;
     var el = $('answer-text');
     el.style.fontSize = t.length > 16 ? '22px' : (t.length > 10 ? '26px' : '');
-    if (!t) {
-      el.innerHTML = '<span class="ph">输入英文单词…</span><span class="caret"></span>';
-    } else if (session.revealed) {
-      el.textContent = t;
-    } else {
-      el.textContent = t;
-      el.insertAdjacentHTML('beforeend', '<span class="caret"></span>');
-    }
-    $('answer').classList.toggle('is-empty', !t);
+    // 光标由 CSS 的 ::after 提供，这里只维护文本节点：
+    // 不再每次按键都 insertAdjacentHTML 重建光标，闪烁动画也就不会被打回起点
+    if (!t) el.innerHTML = '<span class="ph">输入英文单词…</span>';
+    else el.textContent = t;
+    var box = $('answer');
+    box.classList.toggle('is-empty', !t);
+    box.classList.toggle('is-revealed', !!session.revealed);
   }
 
   function push(ch) {
@@ -342,7 +345,8 @@
       (w.ph ? ' <span class="ipa">/' + esc(w.ph) + '/</span>' : '') +
       '<br>' + esc(w.z) +
       (ok ? '' : '<br><span style="color:var(--muted);font-size:13px">你写的是：' + esc(session.input || '（空）') + '</span>');
-    $('answer').className = 'answer ' + (ok ? 'is-ok' : 'is-err');
+    $('answer').classList.toggle('is-ok', ok);
+    $('answer').classList.toggle('is-err', !ok);
     renderAnswer();
 
     $('btn-submit').hidden = true;
@@ -373,7 +377,7 @@
         session.resolved++;
       }
     }
-    $('quiz-bar-fill').style.width = (session.resolved / session.total * 100) + '%';
+    paintBar();
     $('btn-next').textContent = session.queue.length ? '下一个' : '完成';
 
     if (state.settings.auto) {
@@ -609,9 +613,13 @@
       });
     });
 
-    // 顶栏阴影
+    // 顶栏下边线：元素缓存下来，且只在状态真的翻转时才碰 DOM
+    // （原来每次 scroll 都 querySelector 一次 + 无条件 toggle，滚动时白做功）
+    var topbar = document.querySelector('.topbar');
+    var stuck = false;
     window.addEventListener('scroll', function () {
-      document.querySelector('.topbar').classList.toggle('is-stuck', window.scrollY > 4);
+      var s = window.scrollY > 4;
+      if (s !== stuck) { stuck = s; topbar.classList.toggle('is-stuck', s); }
     }, { passive: true });
 
     // 返回键 / 手势返回
@@ -642,7 +650,12 @@
         rollDaily();
         go('home');
         $('app').hidden = false;
-        setTimeout(function () { $('splash').classList.add('is-gone'); }, 520);
+        setTimeout(function () {
+          var sp = $('splash');
+          sp.classList.add('is-gone');
+          // 淡出结束后彻底摘掉：否则那条无限循环的加载动画会一直跑下去
+          setTimeout(function () { sp.hidden = true; }, 600);
+        }, 520);
         // 桌面快捷方式：?action=quiz / ?action=stats
         var act = new URLSearchParams(location.search).get('action');
         if (act === 'stats') go('stats');

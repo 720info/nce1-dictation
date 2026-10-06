@@ -68,9 +68,22 @@ gh api -X POST repos/<你>/<仓库名>/pages -f "source[branch]=main" -f "source
 | 首页 | 课程范围、每日词数、范围内可练/已掌握/今日完成、开始听写 |
 | 听写页 | 中文释义、虚拟键盘、提交、对错反馈（含正确拼写、音标、释义） |
 | 统计页 | 今日完成数、今日正确率、累计已掌握、错题记录（含课号与错误次数，「已订正」状态） |
+| 全屏铺满 | 手机 / 平板 / 桌面均占满整屏，不再限宽居中留白；宽屏下卡片、按钮、字号、虚拟键盘按键同步放大 |
+| 图标统一 | 左上角品牌标与 App 图标同一套图形（渐变方块 + 白色圆角内块 + 字母 A + 绿勾），用矢量复刻，任意缩放都清晰 |
 | 额外 | 「只练错题」、进度本地持久化、音效开关、安装引导 |
 
 **判分宽容度**：忽略大小写、空格、连字符、撇号和句点。所以 `bus stop`、`busstop`、`Mr.`、`mr` 都算对——考的是拼写字母，不是标点。
+
+### 关于流畅度
+
+移动端滚动掉帧的头号原因是 `backdrop-filter`——顶栏是 `position:sticky`，一加背景模糊，浏览器就要在**每一帧滚动时重新计算模糊**。本项目**刻意不用**它（本页底色是纯色，模糊后肉眼几乎无差别）。同一类处理还包括：
+
+- 进度条走 `transform:scaleX()` 而非 `width`（宽度动画每帧都要重新布局）
+- 输入光标用 CSS `::after` 画，敲键时只改文本节点，不再重建光标元素、闪烁动画也不会被打回起点
+- 虚拟键盘按键不给 `box-shadow` 做过渡（阴影动画每帧都要重绘，而按键是最密集的交互）
+- 顶栏的滚动监听缓存元素引用，且只在状态真的翻转时才碰 DOM
+- 启动遮罩淡出后彻底摘掉，那条无限循环的加载动画随之停止
+
 
 ---
 
@@ -87,8 +100,8 @@ gh api -X POST repos/<你>/<仓库名>/pages -f "source[branch]=main" -f "source
   "start_url": "./index.html",
   "scope": "./",
   "theme_color": "#4c6ef5",
-  "background_color": "#4c6ef5",    // 安卓启动页底色
-  "orientation": "portrait",
+  "background_color": "#4e6af3",    // 安卓启动页底色（与图标顶部渐变一致）
+  "orientation": "any",             // 不锁方向：平板横屏时也能铺满全屏
   "icons": [ 192 any, 512 any, 512 maskable ],
   "shortcuts": [ 开始听写, 查看错题 ]
 }
@@ -165,32 +178,34 @@ nce1-dictation-pwa/
 三套脚本都在 `test/` 里，**自带静态服务器**（临时端口），不需要你事先起服务；跑完把截图落到 `test/shots/`。
 
 ```bash
-npm test            # 主验收 43 项：功能 + 交互 + 离线
-npm run test:edge   # 边界验收 20 项：已安装 / 小屏 / 长短语 / 平板 / 横屏
+npm test            # 主验收 51 项：功能 + 交互 + 离线 + 性能回归
+npm run test:edge   # 边界验收 24 项：已安装 / 小屏 / 长短语 / 平板 / 横屏
 npm run test:live   # 线上验收 9 项：直接打 GitHub Pages 地址
 npm run test:all    # 前两套连着跑
 ```
 
 依赖只有一个 `playwright-core`（**不下载浏览器**，复用系统缓存的 `chrome-headless-shell`；`test/lib.js` 会自动定位最新版本，也可用 `CHROME_SHELL=/path/to/shell` 指定）。
 
-### 主验收（43 项）
+### 主验收（51 项）
 
 - 页面内可编辑元素数为 **0**（系统输入法无法唤起）
 - 虚拟键盘 26 字母 + 标点键齐全、大小写切换正确（含「连点 shift 不误锁大写」的回归）
 - 物理键盘输入 / `Enter` 提交 / 下一题
-- 答错 → 该词在后续随机位置重新出题（实测序列：`法国的；法国人` 答错 → 中间 4 题 → 第 6 题重新出现）
+- 答错 → 该词在后续随机位置重新出题（实测序列：`学生` 答错 → 中间 3 题 → 第 5 题重新出现）
 - 答对 → 移出词库，今日完成数与正确率同步
 - 错题记录含课号、错误次数与「已订正」状态
 - 刷新后进度保留
 - Service Worker 激活、预缓存建立、**断网重载后仍可正常听写**
-- 桌面端自动隐藏虚拟键盘、限宽 520px 居中
+- 桌面端自动隐藏虚拟键盘、内容占满整屏
+- **左上角品牌标**是矢量图形、与 App 图标同构图、且未被全局图标描边规则污染
+- **性能回归**：顶栏不含 `backdrop-filter`、进度条走 `transform`、光标由 `::after` 提供
 
-### 边界验收（20 项）
+### 边界验收（24 项）
 
 - 未安装时自动弹安装引导；`navigator.standalone = true`（iOS 真实 API）时**不弹**
 - iPhone SE 375×667 / iPhone 15 393×852：听写页整屏放得下，无纵向滚动，提交按钮与键盘完整可见
 - 超长短语 `Royal Air Force` 完整输入（含空格与大写），不撑破容器、字号自动缩小、无横向滚动
-- iPad 820×1180 与横屏 844×390 无横向滚动
+- iPad 820×1180 与横屏 844×390：**外框宽度等于视口宽度、起于 x=0**（不再居中留白），内容区铺开 ≥ 视口 88%
 - `styles.css` 里 `#app` 的 `min-height` 有 `100vh` 兜底在前、`100dvh` 在后（老浏览器保护）
 
 ### 线上验收（9 项）
@@ -199,10 +214,10 @@ npm run test:all    # 前两套连着跑
 - HTTPS 下自动弹出安装引导
 - `manifest.webmanifest` 以 `application/manifest+json` 返回，`display: standalone`、3 个图标、主题色正确
 - 进入听写页、判分生效
-- **Service Worker 在 HTTPS 下成功激活**，预缓存 `nce1-dictation-1.0.2` 建立
+- **Service Worker 在 HTTPS 下成功激活**，预缓存 `nce1-dictation-1.1.0` 建立
 - **断网重载后仍可正常听写**
 
 ### 兼容性说明
 
-`app.js` 通篇 ES5（`var` / `function` / IIFE），无箭头函数、模板字符串、可选链。CSS 里 `backdrop-filter` 已带 `-webkit-` 前缀，`inset` 需 iOS 14.5+，flex `gap` 需 iOS 14.1+，`100dvh` 需 iOS 16.4+（已有 `100vh` 兜底）——**iOS 15 及以上均正常**。
+`app.js` 通篇 ES5（`var` / `function` / IIFE），无箭头函数、模板字符串、可选链。CSS 里 `inset` 需 iOS 14.5+，flex `gap` 需 iOS 14.1+，`100dvh` 需 iOS 16.4+（已有 `100vh` 兜底）——**iOS 15 及以上均正常**。不依赖 `backdrop-filter`，因此对老设备也友好。
 

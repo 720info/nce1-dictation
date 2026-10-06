@@ -34,6 +34,36 @@ const L = require('./lib');
     await page.screenshot({ path: path.join(OUT, '01-home.png') });
     R.check('首页渲染', await page.isVisible('#view-home'));
 
+    /* ---------- 1b. 左上角品牌标 = App 图标的矢量复刻 ---------- */
+    const brand = await page.evaluate(() => {
+      const s = document.querySelector('.brand-mark');
+      if (!s || s.tagName.toLowerCase() !== 'svg') return { tag: s ? s.tagName : null };
+      const rects = s.querySelectorAll('rect');
+      const circle = s.querySelector('circle');
+      const grad = s.querySelector('linearGradient');
+      const box = s.getBoundingClientRect();
+      const cs = getComputedStyle;
+      return {
+        tag: 'svg',
+        rects: rects.length,
+        whiteInner: !!(rects[1] && (rects[1].getAttribute('fill') || '').toLowerCase() === '#fff'),
+        hasGrad: !!grad,
+        hasCheck: !!circle && (circle.getAttribute('fill') || '').toLowerCase() === '#37b24d',
+        // 关键：不能被全局那条「线性图标统一描边」规则命中
+        polluted: s.matches('svg:not(.brand-mark)'),
+        shapesStroke: [cs(rects[0]).stroke, cs(rects[1]).stroke, cs(s.querySelector('path')).stroke],
+        checkStroke: cs(s.querySelectorAll('path')[1]).stroke,
+        w: Math.round(box.width), h: Math.round(box.height)
+      };
+    });
+    R.check('左上角品牌标是矢量图形（非文字标）', brand.tag === 'svg', JSON.stringify(brand));
+    R.check('品牌标含渐变底 + 白色内块 + 绿勾（与 App 图标同构图）',
+      brand.rects >= 2 && brand.whiteInner && brand.hasGrad && brand.hasCheck, JSON.stringify(brand));
+    R.check('品牌标未被全局图标描边规则污染',
+      brand.polluted === false && brand.shapesStroke.every(s => s === 'none') && brand.checkStroke === 'rgb(255, 255, 255)',
+      JSON.stringify(brand.shapesStroke) + ' 勾=' + brand.checkStroke);
+    R.check('品牌标尺寸为正方形', brand.w === brand.h && brand.w >= 30, `${brand.w}x${brand.h}`);
+
     /* ---------- 2. 安装引导（iOS） ---------- */
     await page.waitForSelector('#install-mask:not([hidden])', { timeout: 8000 });
     await L.waitStable(page, '#btn-install-close');
@@ -80,6 +110,20 @@ const L = require('./lib');
     R.check('键盘含空格/撇号/连字符/句点', await page.isVisible('#kbd .key[data-act="space"]') && puncKeys.join('') === "'-.",
       '标点键=' + JSON.stringify(puncKeys));
     R.check('键盘含退格/上档键', await page.isVisible('#kbd .key[data-act="back"]') && await page.isVisible('#kbd .key[data-act="shift"]'));
+
+    /* 性能相关的两条静态断言，防止以后被改回「每帧布局 / 每次按键重建节点」 */
+    const bar = await page.evaluate(() => {
+      const cs = getComputedStyle(document.querySelector('#quiz-bar-fill'));
+      return { transform: cs.transform, transition: cs.transitionProperty };
+    });
+    R.check('进度条走 transform 而非 width（width 动画每帧都要重新布局）',
+      /matrix/.test(bar.transform) && !/(^|,)\s*width/.test(bar.transition), JSON.stringify(bar));
+    const caret = await page.evaluate(() => {
+      const cs = getComputedStyle(document.querySelector('#answer-text'), '::after');
+      return { w: cs.width, anim: cs.animationName };
+    });
+    R.check('光标由 CSS ::after 提供（按键时不再重建节点、动画不被重置）',
+      caret.anim === 'blink' && caret.w === '2px', JSON.stringify(caret));
 
     /* ---------- 6. 第 1 题：虚拟键盘故意答错 ---------- */
     const q1 = (await page.textContent('#prompt-zh')).trim();
@@ -234,8 +278,18 @@ const L = require('./lib');
     const dEditable = await p2.evaluate(() =>
       document.querySelectorAll('input:not([type=range]):not([type=checkbox]), textarea, [contenteditable]').length);
     R.check('桌面端同样无可编辑元素', dEditable === 0, dEditable);
-    const w = await p2.evaluate(() => document.querySelector('#app').getBoundingClientRect().width);
-    R.check('桌面端限宽居中', w <= 520, w);
+    const dw = await p2.evaluate(() => ({
+      app: Math.round(document.querySelector('#app').getBoundingClientRect().width),
+      innerW: innerWidth,
+      scrollW: document.documentElement.scrollWidth
+    }));
+    R.check('桌面端内容占满整屏（不再限宽居中）', dw.app === dw.innerW, `${dw.app} / 视口 ${dw.innerW}`);
+    R.check('桌面端无横向滚动', dw.scrollW <= dw.innerW + 1, `${dw.scrollW} ≤ ${dw.innerW}`);
+    const dTopbar = await p2.evaluate(() => {
+      const t = getComputedStyle(document.querySelector('.topbar'));
+      return { bf: t.backdropFilter || t.webkitBackdropFilter || 'none' };
+    });
+    R.check('顶栏不用 backdrop-filter（移动端滚动掉帧的主因）', dTopbar.bf === 'none', dTopbar.bf);
 
     await ctx2.close();
   } finally {

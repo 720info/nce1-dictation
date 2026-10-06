@@ -161,7 +161,7 @@ const L = require('./lib');
       await ctx.close();
     }
 
-    /* ============ D. 平板 / 横屏 ============ */
+    /* ============ D. 平板 / 横屏：内容必须占满整屏 ============ */
     for (const [label, vp] of [['iPad', { width: 820, height: 1180 }], ['landscape', { width: 844, height: 390 }]]) {
       const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 2 });
       const p = await ctx.newPage();
@@ -174,13 +174,61 @@ const L = require('./lib');
       await L.clickEl(p, '#btn-start');
       await p.waitForSelector('#view-quiz.is-active');
       await p.waitForTimeout(500);
-      const m = await p.evaluate(() => ({
-        docH: document.documentElement.scrollHeight, innerH: innerHeight,
-        docW: document.documentElement.scrollWidth, innerW: innerWidth
-      }));
+      const m = await p.evaluate(() => {
+        const app = document.querySelector('#app').getBoundingClientRect();
+        const card = document.querySelector('#prompt-card').getBoundingClientRect();
+        return {
+          appW: Math.round(app.width), appL: Math.round(app.left),
+          cardW: Math.round(card.width),
+          docH: document.documentElement.scrollHeight, innerH: innerHeight,
+          docW: document.documentElement.scrollWidth, innerW: innerWidth
+        };
+      });
       R.check(`${label} 无横向滚动`, m.docW <= m.innerW + 1, `${m.docW} ≤ ${m.innerW}`);
+      R.check(`${label} 外框占满视口宽度（不再居中留白）`, m.appW === m.innerW && m.appL === 0,
+        `外框 ${m.appW} 起于 x=${m.appL}，视口 ${m.innerW}`);
+      // 内容区至少要占到视口 88%（只扣掉两侧内边距），证明没有被限宽
+      R.check(`${label} 内容区铺开（≥ 视口 88%）`, m.cardW >= m.innerW * 0.88,
+        `卡片宽 ${m.cardW} / 视口 ${m.innerW}`);
       await p.screenshot({ path: path.join(OUT, `D-${label}.png`) });
       R.check(`${label} 页面可渲染`, await p.isVisible('#view-quiz'));
+      await ctx.close();
+    }
+    /* ============ E. 「已答题」状态（内容最多）不能溢出 ============
+       答题后反馈区会多出「正确答案 + 音标 + 释义 + 你写的是」四行，
+       是整个应用里内容最高的状态；横屏平板最容易在这里被撑出滚动条。 */
+    for (const [label, vp] of [['iPad竖', { width: 820, height: 1180 }], ['iPad横', { width: 1180, height: 820 }], ['iPhoneSE', { width: 375, height: 667 }]]) {
+      const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: L.IPHONE_UA });
+      const p = await ctx.newPage();
+      p.on('pageerror', e => R.error(label + ' E PAGEERROR: ' + e.message));
+      await p.addInitScript(() => {
+        sessionStorage.setItem('nce1.installed.tip', '1');
+        localStorage.setItem('nce1.settings.v1', JSON.stringify({ start: 1, end: 144, daily: 10, hints: true, auto: false, sound: false }));
+      });
+      await p.goto(BASE, { waitUntil: 'networkidle' });
+      await p.waitForSelector('#app:not([hidden])');
+      await p.waitForTimeout(900);
+      await L.dismissInstall(p);
+      await L.clickEl(p, '#btn-start');
+      await p.waitForSelector('#view-quiz.is-active');
+      await p.waitForTimeout(500);
+      await p.keyboard.type('zzzz');          // 故意答错，逼出最长的反馈
+      await L.clickEl(p, '#btn-submit');
+      await p.waitForTimeout(600);
+
+      const m = await p.evaluate(() => {
+        const nx = document.querySelector('#btn-next');
+        const r = nx.getBoundingClientRect();
+        return {
+          docH: document.documentElement.scrollHeight, innerH: innerHeight,
+          nextB: Math.round(r.bottom), fbH: Math.round(document.querySelector('#feedback').getBoundingClientRect().height)
+        };
+      });
+      R.check(`${label} 答错后反馈已展开（内容最多状态）`, m.fbH > 80, '反馈高 ' + m.fbH);
+      R.check(`${label} 已答题不溢出（反馈展开后仍一屏放得下）`, m.docH <= m.innerH + 2,
+        `文档 ${m.docH} / 视口 ${m.innerH}`);
+      R.check(`${label} 「下一个」按钮完整可见`, m.nextB <= m.innerH + 1, `按钮底 ${m.nextB} ≤ ${m.innerH}`);
+      await p.screenshot({ path: path.join(OUT, `E-${label}-answered.png`) });
       await ctx.close();
     }
   } finally {

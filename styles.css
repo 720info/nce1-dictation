@@ -33,9 +33,11 @@ body{
   font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;
   overscroll-behavior-y:none;
 }
-button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+/* touch-action:manipulation 去掉双击缩放判定，点击响应更跟手 */
+button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0;touch-action:manipulation}
 h1,h2,p{margin:0}
-svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* 线性图标统一规格（.brand-mark 是彩色图形标，不适用这套描边规则，排除掉） */
+svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 
 /* 整个应用禁用文本选择，避免长按弹出系统菜单 */
 #app,.splash,.sheet-mask{
@@ -58,8 +60,10 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 @keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(360%)}}
 
 /* ---------- 外框 ---------- */
+/* 手机 / 平板 / 桌面都让内容占满整屏，不再限宽居中。
+   可读性靠 .main 的响应式内边距和断点里的字号放大来保证，而不是靠留白。 */
 #app{
-  max-width:520px;margin:0 auto;background:var(--bg);
+  width:100%;background:var(--bg);
   /* 渐进增强：老浏览器（iOS < 16.4 / Chrome < 108）不认 dvh，整条会被丢弃，
      所以先给 vh 兜底，再用 dvh 覆盖 —— 移动端地址栏收放时高度才准确 */
   min-height:100vh;
@@ -69,22 +73,19 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 }
 
 /* ---------- 顶栏 ---------- */
+/* 注意：这里**不要**用 backdrop-filter。sticky + 背景模糊会让浏览器在每一帧滚动时
+   重新计算模糊，是移动端最典型的掉帧源；而且本页底色是纯色，模糊后肉眼几乎无差别。 */
 .topbar{
   position:sticky;top:0;z-index:20;
   padding-top:env(safe-area-inset-top);
-  background:rgba(238,241,248,.86);backdrop-filter:saturate(180%) blur(14px);
-  -webkit-backdrop-filter:saturate(180%) blur(14px);
+  background:var(--bg);
   border-bottom:1px solid transparent;transition:border-color .2s;
 }
 .topbar.is-stuck{border-bottom-color:var(--line)}
-.topbar-in{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px}
-.brand{display:flex;align-items:center;gap:9px}
-.brand-mark{
-  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
-  background:linear-gradient(150deg,var(--brand),var(--brand-2));color:#fff;
-  font-size:13px;font-weight:800;letter-spacing:-.03em;
-}
-.brand-mark em{font-style:normal;font-size:10px;opacity:.85;margin-left:1px}
+.topbar-in{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,3.2vw,44px)}
+.brand{display:flex;align-items:center;gap:10px}
+/* 左上角品牌标：与 App 图标同一套图形（矢量复刻） */
+.brand-mark{width:34px;height:34px;flex:0 0 34px;display:block;border-radius:8px}
 .brand-text{font-weight:650;font-size:16px;letter-spacing:.01em}
 .icon-btn{
   width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
@@ -93,7 +94,7 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 .icon-btn:active{transform:scale(.93)}
 
 /* ---------- 页面容器 ---------- */
-.main{flex:1;display:flex;flex-direction:column;padding:14px 16px 26px}
+.main{flex:1;display:flex;flex-direction:column;padding:14px clamp(16px,3.2vw,44px) 26px}
 .view{display:none;flex-direction:column;gap:14px}
 .view.is-active{display:flex;animation:fade .22s ease}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -101,7 +102,7 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 
 .hero{padding:6px 2px 0}
 .hero h1{font-size:26px;font-weight:750;letter-spacing:-.02em}
-.hero p{color:var(--muted);font-size:13.5px;margin-top:5px}
+.hero p{color:var(--muted);font-size:13.5px;margin-top:5px;max-width:64ch}
 
 /* ---------- 卡片 ---------- */
 .card{background:var(--surface);border-radius:var(--r-lg);padding:16px;box-shadow:var(--sh-1)}
@@ -176,7 +177,13 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 .quiz-top{display:flex;align-items:center;gap:12px}
 .quiz-progress{flex:1;display:flex;align-items:center;gap:10px}
 .quiz-bar{flex:1;height:7px;border-radius:4px;background:#dde3ef;overflow:hidden}
-.quiz-bar i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--brand),var(--brand-2));transition:width .35s cubic-bezier(.3,1,.5,1)}
+/* 用 scaleX 而不是 width：宽度动画每帧都要重新布局，scaleX 只走合成层 */
+.quiz-bar i{
+  display:block;height:100%;width:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--brand),var(--brand-2));
+  transform:scaleX(0);transform-origin:0 50%;
+  transition:transform .35s cubic-bezier(.3,1,.5,1)
+}
 #quiz-count{font-size:12.5px;font-weight:650;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 .prompt-card{
@@ -204,7 +211,14 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
   color:var(--muted)
 }
 .answer.is-empty .answer-text{color:var(--muted)}
-.caret{display:inline-block;width:2px;height:30px;background:var(--brand);vertical-align:-4px;margin-left:2px;animation:blink 1.05s steps(1) infinite}
+/* 光标用 ::after 画：每敲一个键只改文本节点，不重建光标元素，
+   闪烁动画就不会被反复重置回起点（原实现每按键都闪一下）。
+   高度用 em，跟着答案字号缩放。 */
+.answer-text::after{
+  content:"";display:inline-block;width:2px;height:1.05em;background:var(--brand);
+  vertical-align:-.14em;margin-left:2px;animation:blink 1.05s steps(1) infinite
+}
+.answer.is-revealed .answer-text::after{display:none}
 @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 
 .feedback{border-radius:var(--r-md);padding:13px 15px;background:var(--surface);box-shadow:var(--sh-1)}
@@ -231,9 +245,11 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
   flex:1 1 0;min-width:0;height:44px;border-radius:9px;background:#fff;
   box-shadow:0 1px 0 rgba(19,23,32,.16), 0 2px 4px -1px rgba(19,23,32,.1);
   font-size:17px;font-weight:550;color:var(--ink);
-  display:grid;place-items:center;transition:transform .07s,background .12s,box-shadow .12s
+  display:grid;place-items:center;
+  /* 不给 box-shadow 做过渡：阴影动画每帧都要重绘，而按键是最密集的交互 */
+  transition:transform .07s,background .12s
 }
-.key:active,.key.is-hit{transform:translateY(1px);background:#e9eefb;box-shadow:0 0 0 rgba(0,0,0,0)}
+.key:active,.key.is-hit{transform:translateY(1px);background:#e9eefb;box-shadow:none}
 .key.fn{flex:1.5 1 0;background:#dfe5f1;box-shadow:0 1px 0 rgba(19,23,32,.14)}
 .key.fn svg{width:20px;height:20px}
 .key.fn.on{background:var(--brand);color:#fff}
@@ -271,16 +287,16 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:22px 0}
 
 /* ---------- 底部抽屉 ---------- */
+/* 同样不用 backdrop-filter：整屏模糊在低端机上很贵，改用稍深的纯色遮罩补偿 */
 .sheet-mask{
-  position:fixed;inset:0;z-index:60;background:rgba(19,23,32,.42);
+  position:fixed;inset:0;z-index:60;background:rgba(19,23,32,.5);
   display:flex;align-items:flex-end;justify-content:center;
-  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
   animation:fadeIn .2s ease
 }
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .sheet{
-  width:100%;max-width:520px;background:var(--surface);
-  border-radius:22px 22px 0 0;padding:12px 18px calc(18px + env(safe-area-inset-bottom));
+  width:100%;max-width:680px;background:var(--surface);
+  border-radius:22px 22px 0 0;padding:12px clamp(18px,3.2vw,40px) calc(18px + env(safe-area-inset-bottom));
   display:flex;flex-direction:column;gap:12px;
   animation:up .3s cubic-bezier(.2,1,.4,1)
 }
@@ -318,16 +334,122 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 }
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 
-/* ---------- 大屏 ---------- */
-@media (min-width:560px){
-  body{background:#e6eaf4}
-  #app{box-shadow:0 0 0 1px rgba(19,23,32,.05),0 30px 70px -30px rgba(19,23,32,.3)}
-  .topbar{position:sticky}
+/* ---------- 平板 / 宽屏 ----------
+   内容占满整屏，靠「元素本身放大」来填充空间，而不是靠两侧留白。 */
+@media (min-width:700px){
+  .topbar-in{height:clamp(56px,5.8vh,68px)}
+  .brand-mark{width:38px;height:38px;flex:0 0 38px;border-radius:9px}
+  .brand-text{font-size:17px}
+  .icon-btn{width:42px;height:42px;border-radius:12px}
+  .icon-btn svg{width:24px;height:24px}
+
+  /* 纵向尺寸一律跟屏幕高度走：竖屏平板变大，横屏平板自动收回原尺寸，
+     否则横屏答题（内容最多）会撑出滚动条 */
+  .main{padding-top:clamp(14px,2.2vh,26px);padding-bottom:clamp(20px,3vh,36px)}
+  .view{gap:clamp(14px,1.6vh,18px)}
+  .hero h1{font-size:clamp(30px,3.2vw,42px)}
+  .hero p{font-size:15px}
+
+  .card{padding:clamp(18px,1.8vw,26px);border-radius:24px}
+  .card-head h2{font-size:17px}
+  .badge{font-size:12.5px}
+  .field-label{font-size:15px}
+  .field-label b{font-size:20px}
+  .step{flex:0 0 40px;height:40px;font-size:21px}
+  .chip{font-size:13.5px;padding:7px 14px}
+  .seg button{font-size:15px;padding:11px 0}
+  .stat-strip b{font-size:23px}
+  .stat-strip span{font-size:13px}
+  .btn{height:clamp(52px,5.6vh,66px);font-size:17px;border-radius:16px}
+  .btn-lg{height:clamp(56px,6.4vh,72px);font-size:18px}
+
+  /* 听写页：垂直方向也铺开，别让键盘孤零零吊在底部 */
+  #view-quiz.is-active{gap:clamp(12px,1.7vh,26px)}
+  /* 竖屏平板屏幕很高，内容块居中放置：上方与键盘上方各分一半余量，
+     比「顶上堆一堆、中间空一大块」自然。.kbd 本身已有 margin-top:auto。 */
+  #view-quiz.is-active .quiz-top{margin-top:auto}
+  /* 空间不够时只压答案区，键盘 / 提示卡 / 按钮都保持原尺寸不被挤扁 */
+  #view-quiz.is-active .quiz-top,
+  #view-quiz.is-active .prompt-card,
+  #view-quiz.is-active .feedback,
+  #view-quiz.is-active .kbd,
+  #view-quiz.is-active .quiz-actions{flex:0 0 auto}
+  .prompt-card{padding:clamp(20px,3vh,48px) 22px;border-radius:24px}
+  .prompt-zh{font-size:clamp(30px,3.4vh,54px)}
+  .prompt-pos{font-size:14px}
+  .answer{flex:0 1 auto;min-height:clamp(58px,11vh,150px);border-radius:24px}
+  .answer-text{font-size:clamp(32px,4.2vh,50px)}
+  .answer-text .ph{font-size:17px}
+  .kbd{border-radius:24px;padding:10px 10px 6px;gap:7px}
+  .kbd-row{gap:8px}
+  .key{height:clamp(42px,5.6vh,66px);font-size:19px;border-radius:11px}
+
+  .grid-2{grid-template-columns:repeat(4,1fr)}
+  .tile b{font-size:28px}
+  .wrong-list{max-height:58vh}
+  .sheet{border-radius:26px 26px 0 0}
+  .sheet h2{font-size:21px}
+  .sheet-sub{font-size:15px}
+  .step-item p{font-size:15px}
+  .switch{font-size:15.5px}
 }
-@media (max-height:680px){
-  .prompt-zh{font-size:25px}
-  .answer-text{font-size:26px}
-  .key{height:40px}
+/* 矮宽屏（平板横屏、分屏窗口）：竖向收一档。
+   答题后反馈展开时内容最多，这一档保证「提示 + 答案 + 反馈 + 键盘 + 按钮」仍能一屏放下。
+   上界用 860 而不是 900，是为了不误伤 1440x900 这类桌面窗口（桌面不显示虚拟键盘，本就宽松）。
+
+   和窄屏档同样的思路：纵向尺寸全部 vh 驱动。
+   - vh 系数按 **860px** 定标（560→860 区间里 860 处取到的值与改前完全一致）
+   - clamp 的 min 值按 **560px** 定标（这段以下 vh 中值已小于 min，实际取 min）
+   这样 560→860 平滑收缩，既不会在 860 处跳变，也不会在矮高度上被 min 兜住而溢出。
+   实测溢出量只与高度有关、与宽度无关（820 宽与 1133 宽结果逐项相同）。
+
+   已知的边界：视口高 560/568 时仍溢出约 12px。这个尺寸在移动端不存在
+   （平板横屏最矮是 iPad mini 6 的 744，手机横屏宽度都 <700 会走窄屏档），
+   只可能出现在桌面浏览器窗口，而桌面不显示虚拟键盘 —— 实测 820x560 桌面上下文溢出 0px。
+   因此不为它再加一层断点。 */
+@media (min-width:700px) and (max-height:860px){
+  .topbar-in{height:clamp(38px,6.512vh,56px)}
+  .main{padding-top:clamp(8px,1.628vh,14px);padding-bottom:clamp(12px,2.558vh,22px)}
+  #view-quiz.is-active{gap:clamp(6px,1.279vh,11px)}
+  .prompt-card{padding:clamp(9px,1.86vh,16px) 20px}
+  .prompt-zh{font-size:clamp(19px,3vh,34px)}
+  .answer{min-height:clamp(36px,7.442vh,64px)}
+  .answer-text{font-size:clamp(21px,3.6vh,36px)}
+  .feedback{padding:clamp(7px,1.279vh,11px) 14px}
+  .fb-detail{margin-top:clamp(3px,.581vh,5px);font-size:clamp(10px,1.512vh,13px);line-height:1.5}
+  .kbd{padding:clamp(5px,1.047vh,9px) 8px clamp(3px,.581vh,5px);gap:clamp(4px,.698vh,6px)}
+  .kbd-row{gap:clamp(4px,.814vh,7px)}
+  .key{height:clamp(26px,5.2vh,50px);font-size:clamp(13px,1.977vh,17px)}
+  .btn{height:clamp(30px,5.4vh,56px);font-size:clamp(13px,1.86vh,16px)}
+}
+/* 窄屏手机 + 矮（小屏机、多数安卓机、横屏手机、分屏）：
+   答题后反馈展开是整个应用内容最高的状态，这一档保证它一屏放得下。
+   「下一个」按钮掉到屏幕外是要命的——答完题必须能直接点下一题。
+   纵向尺寸一律用 vh 驱动，从 560px 到 800px 平滑收缩，避免分档跳变产生断层。
+   上界取 800：实测普通档位要视口高 ≥800 才放得下。
+
+   各 clamp 的 **min 值**按 560px 高度定标（不是 600）：
+   600px 以下 vh 中值已经小于 min，实际取的就是 min，所以只有 min 决定这段能否放下。
+   把 min 压到「560px 高度刚好不溢出」，600px 以上由 vh 中值接管、完全不受影响，
+   因此调 min 不会在 600px 处制造新的断层。 */
+@media (max-width:699px) and (max-height:800px){
+  .topbar-in{height:clamp(40px,7.4vh,56px)}
+  .main{padding-top:clamp(6px,2vh,14px);padding-bottom:clamp(8px,2.4vh,16px)}
+  #view-quiz.is-active{gap:clamp(5px,1.1vh,8px)}
+  .quiz-top .icon-btn{width:clamp(28px,4.6vh,38px);height:clamp(28px,4.6vh,38px);border-radius:10px}
+  .quiz-top .icon-btn svg{width:clamp(16px,2.6vh,22px);height:clamp(16px,2.6vh,22px)}
+  .prompt-card{padding:clamp(8px,2vh,16px) 16px}
+  .prompt-zh{font-size:clamp(17px,3.4vh,28px)}
+  .prompt-pos{font-size:12px;margin-top:4px;min-height:16px}
+  .answer{min-height:clamp(40px,8vh,70px)}
+  .answer-text{font-size:clamp(18px,3.4vh,30px)}
+  .feedback{padding:clamp(7px,1.6vh,13px) 13px}
+  .fb-detail{margin-top:clamp(3px,.6vh,5px);font-size:clamp(11px,1.6vh,13px);line-height:1.4}
+  .kbd{padding:clamp(5px,1.1vh,9px) 6px clamp(3px,.6vh,5px);gap:clamp(4px,.8vh,6px)}
+  .kbd-row{gap:clamp(4px,.8vh,6px)}
+  .key{height:clamp(30px,5.6vh,44px);font-size:clamp(13px,2.1vh,17px)}
+  .quiz-actions{margin-top:clamp(4px,1vh,10px)}
+  #view-quiz .btn{height:clamp(34px,5.8vh,50px);font-size:clamp(13px,2vh,16px)}
 }
 /* ---------- 减弱动效 ---------- */
 @media (prefers-reduced-motion: reduce){
