@@ -2,9 +2,26 @@
 
 《新概念英语》第一册单词听写练习。纯前端、零依赖、可离线，安装到手机主屏幕后全屏独立运行，外观与原生 App 一致。
 
+## 🔗 线上地址
+
+**https://720info.github.io/nce1-dictation/**
+
+用手机浏览器打开这个链接即可直接使用，或按下文「装到手机桌面」一节添加到主屏幕。
+
 ---
 
 ## 一、怎么跑起来
+
+### 装到手机桌面
+
+线上地址是 HTTPS 的，所以 PWA 的安装与离线能力**开箱可用**：
+
+| 平台 | 操作 |
+|---|---|
+| **iOS / Safari** | 分享按钮 ⤴ → 「添加到主屏幕」→ 添加 |
+| **Android / Chrome** | 右上角 ⋮ → 「安装应用」（页面内也会自动弹引导，点一下即可） |
+
+装好后桌面出现独立图标，打开是全屏、无地址栏，断网也能继续听写。
 
 ### 本地预览（电脑）
 
@@ -20,22 +37,19 @@ python3 -m http.server 8080
 
 > ⚠️ **不能直接双击 `index.html` 打开**（`file://` 协议下浏览器禁止读取词库、注册 Service Worker）。
 > 必须通过 `http://` 或 `https://` 访问。
+>
+> 也注意：通过局域网 IP（`http://192.168.x.x`）访问时，手机浏览器**不会**启用 Service Worker，
+> 也无法「添加到主屏幕」—— 那种情况下用上面的线上地址。
 
-### 装到手机桌面（真正要的那一步）
+### 自己重新部署
 
-PWA 的安装与离线能力**要求 HTTPS**（`localhost` 例外）。局域网 IP 不行，`http://` 也不行。把整个文件夹原样传到任意静态托管即可：
+把整个文件夹原样传到任意静态托管即可，无需构建：
 
-- GitHub Pages / Vercel / Netlify / Cloudflare Pages —— 拖进去就行，无需构建
-- 或使用本机 WorkBuddy 的「发布为应用」能力直接生成在线链接
-
-拿到 `https://` 地址后：
-
-| 平台 | 操作 |
-|---|---|
-| **iOS / Safari** | 分享按钮 ⤴ → 「添加到主屏幕」→ 添加 |
-| **Android / Chrome** | 右上角 ⋮ → 「安装应用」（页面内也会自动弹引导，点一下即可） |
-
-装好后桌面出现独立图标，打开是全屏、无地址栏，断网也能继续听写。
+```bash
+git init -b main && git add -A && git commit -m "init"
+gh repo create <你的仓库名> --public --source=. --remote=origin --push
+gh api -X POST repos/<你>/<仓库名>/pages -f "source[branch]=main" -f "source[path]=/"
+```
 
 ---
 
@@ -141,7 +155,6 @@ nce1-dictation-pwa/
 ## 六、已验证项
 
 用 headless Chromium 按 iPhone 视口 + 桌面视口跑过完整交互测试，43 项断言全通过、零控制台报错，包括：
-
 - 页面内可编辑元素数为 **0**（系统输入法无法唤起）
 - 虚拟键盘 26 字母 + 标点键齐全、大小写切换正确
 - 物理键盘输入 / `Enter` 提交 / 下一题
@@ -151,3 +164,12 @@ nce1-dictation-pwa/
 - 刷新后进度保留
 - Service Worker 激活、预缓存建立、**断网重载后仍可正常听写**
 - 桌面端自动隐藏虚拟键盘、限宽 520px 居中
+
+线上部署后**又对 `https://720info.github.io/nce1-dictation/` 实跑了一遍**，9 项全通过、零控制台报错：
+
+- 首页渲染、词库从线上加载（648 词）
+- HTTPS 下自动弹出安装引导
+- `manifest.webmanifest` 以 `application/manifest+json` 返回，`display: standalone`、3 个图标、主题色正确
+- 进入听写页、判分生效
+- **Service Worker 在 HTTPS 下成功激活**，预缓存 `nce1-dictation-1.0.0` 建立
+- **断网重载后仍可正常听写**
