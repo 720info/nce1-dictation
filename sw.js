@@ -4,7 +4,7 @@
    ============================================================ */
 'use strict';
 
-var VERSION = '1.1.0';
+var VERSION = '1.2.0';
 var CACHE = 'nce1-dictation-' + VERSION;
 
 /* 预缓存：应用外壳 + 词库 + 图标 */

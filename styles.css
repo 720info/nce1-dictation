@@ -173,10 +173,27 @@ svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke
 .row-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .row-btns .btn{height:44px;font-size:14px}
 
+/* ---------- 闯关入口（首页） ---------- */
+.btn-level{
+  display:flex;align-items:center;gap:11px;padding:0 16px;text-align:left;
+  height:56px;border-radius:var(--r-md);
+  background:linear-gradient(135deg,#fff4e0,#ffe8f0);
+  color:#8a4b00;box-shadow:var(--sh-1);
+  border:1px solid #ffe0b8;
+}
+.btn-level svg{flex:0 0 22px;color:#e8940c}
+.btn-level .lv-t{font-weight:700;font-size:16px;color:#7a3f00}
+.btn-level .lv-s{
+  margin-left:auto;font-size:12.5px;font-weight:650;color:#a86a1f;
+  background:rgba(255,255,255,.72);padding:3px 9px;border-radius:999px;white-space:nowrap
+}
+
 /* ---------- 听写页 ---------- */
 .quiz-top{display:flex;align-items:center;gap:12px}
-.quiz-progress{flex:1;display:flex;align-items:center;gap:10px}
-.quiz-bar{flex:1;height:7px;border-radius:4px;background:#dde3ef;overflow:hidden}
+.quiz-progress{flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+/* 进度条 + 倒计时条叠成一小列，共用横向空间，不倒计时的时候只有进度条那么高 */
+.bars{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.quiz-bar{height:7px;border-radius:4px;background:#dde3ef;overflow:hidden}
 /* 用 scaleX 而不是 width：宽度动画每帧都要重新布局，scaleX 只走合成层 */
 .quiz-bar i{
   display:block;height:100%;width:100%;border-radius:4px;
@@ -185,6 +202,42 @@ svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke
   transition:transform .35s cubic-bezier(.3,1,.5,1)
 }
 #quiz-count{font-size:12.5px;font-weight:650;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ---------- 闯关 HUD（生命 / 连击 / 得分） ---------- */
+.hud{display:flex;align-items:center;gap:10px;height:30px}
+.hud-lives{display:flex;gap:5px;flex:0 0 auto}
+/* 生命：用 CSS 画心形，不依赖字体里的 emoji（各平台渲染差异太大） */
+.hud-lives i{
+  width:17px;height:17px;display:block;
+  background:#d7dced;
+  clip-path:path("M8.5 16.4 1.7 9.6A4.3 4.3 0 0 1 8.5 3.7a4.3 4.3 0 0 1 6.8 5.9L8.5 16.4Z");
+  transition:background .2s,transform .2s
+}
+.hud-lives i.on{background:linear-gradient(135deg,#ff6b6b,#e03131)}
+.hud-lives i.on:last-child{transform:none}
+/* 刚扣掉的那颗心做一次收缩，让扣血有反馈 */
+.hud-lives.is-hit i{animation:lifeHit .3s ease}
+@keyframes lifeHit{0%{transform:scale(1)}45%{transform:scale(.78)}100%{transform:scale(1)}}
+
+.hud-combo{
+  font-size:12.5px;font-weight:750;color:#e8590c;background:#fff4e6;
+  padding:3px 9px;border-radius:999px;white-space:nowrap;
+  animation:comboPop .26s cubic-bezier(.3,1.5,.6,1)
+}
+.hud-combo.is-hot{color:#fff;background:linear-gradient(135deg,#f76707,#e03131)}
+@keyframes comboPop{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+
+.hud-score{margin-left:auto;font-size:13px;color:var(--muted);font-weight:600}
+.hud-score b{font-size:18px;font-weight:750;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* 本题倒计时：细条走 transform，不触发布局 */
+.timer{height:3px;border-radius:2px;background:#dfe5f1;overflow:hidden}
+.timer i{
+  display:block;height:100%;width:100%;border-radius:2px;background:linear-gradient(90deg,#37b24d,#51cf66);
+  transform:scaleX(1);transform-origin:0 50%;transition:transform .2s linear,background .3s
+}
+.timer.is-urgent i{background:linear-gradient(90deg,#e03131,#ff8787);animation:urgent .7s ease-in-out infinite}
+@keyframes urgent{0%,100%{opacity:1}50%{opacity:.55}}
 
 .prompt-card{
   background:var(--surface);border-radius:var(--r-lg);padding:20px 18px;
@@ -232,6 +285,7 @@ svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke
 .fb-detail{margin-top:6px;font-size:14px;color:var(--ink-2);line-height:1.55}
 .fb-detail .en{font-weight:700;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:16px}
 .fb-detail .ipa{color:var(--muted);font-size:13px}
+.fb-detail .fb-gain{color:#e8590c;font-weight:700;font-size:13px}
 
 /* ---------- 虚拟键盘 ---------- */
 .kbd{
@@ -286,6 +340,44 @@ svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke
 .wrong-item .wi-n.is-fixed::before{content:"✓ "}
 .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:22px 0}
 
+/* ---------- 关卡列表 ---------- */
+.lv-summary{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:15px 8px}
+.lv-summary div+div{border-left:1px solid var(--line)}
+.lv-summary b{display:block;font-size:22px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.lv-summary span{font-size:11.5px;color:var(--muted)}
+
+.lv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+.lv-card{
+  display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  padding:13px 14px;border-radius:var(--r-md);background:var(--surface);
+  box-shadow:var(--sh-1);border:1.5px solid transparent;text-align:left;
+  transition:transform .12s,border-color .2s,background .2s
+}
+.lv-card:active{transform:scale(.98)}
+.lv-card .lv-no{
+  font-size:23px;font-weight:800;letter-spacing:-.03em;color:var(--brand);
+  font-variant-numeric:tabular-nums;line-height:1.05
+}
+.lv-card .lv-name{font-size:11.5px;color:var(--muted);font-weight:600}
+.lv-card .lv-stars{display:flex;gap:3px;margin-top:4px}
+/* 星星用 clip-path 画，不依赖字体里的 ★（各平台字形差异太大） */
+.lv-card .lv-stars i,
+.res-stars i{
+  display:block;background:#dde3ef;
+  clip-path:polygon(50% 0%,61.8% 34.5%,98% 34.5%,68.8% 56.6%,80% 91%,50% 69.5%,20% 91%,31.2% 56.6%,2% 34.5%,38.2% 34.5%)
+}
+.lv-card .lv-stars i{width:15px;height:15px}
+.lv-card .lv-stars i.on{background:linear-gradient(135deg,#ffd43b,#f59f00)}
+.lv-card .lv-score{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.lv-card.is-clear{border-color:#c7e9cf;background:linear-gradient(160deg,#fff,#f4fbf6)}
+.lv-card.is-perfect{border-color:#ffe3a8;background:linear-gradient(160deg,#fffdf4,#fff5dd)}
+.lv-card.is-locked{background:var(--surface-2);box-shadow:none;opacity:.7;cursor:not-allowed}
+.lv-card.is-locked:active{transform:none}
+.lv-card.is-locked .lv-no{color:var(--muted)}
+.lv-card .lv-lock{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-top:2px}
+.lv-card .lv-lock svg{width:13px;height:13px;flex:0 0 13px;stroke-width:2.1}
+
 /* ---------- 底部抽屉 ---------- */
 /* 同样不用 backdrop-filter：整屏模糊在低端机上很贵，改用稍深的纯色遮罩补偿 */
 .sheet-mask{
@@ -323,6 +415,30 @@ svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke
   background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s
 }
 .switch input:checked{background:var(--brand)}
+
+/* ---------- 关卡结算 ---------- */
+.sheet-result{align-items:center;text-align:center;gap:10px}
+.res-stars{display:flex;gap:10px;justify-content:center;padding:8px 0 2px}
+.res-stars i{
+  width:46px;height:46px;
+  animation:starIn .45s cubic-bezier(.2,1.5,.5,1) backwards
+}
+.res-stars i.on{
+  background:linear-gradient(135deg,#ffd43b,#f59f00);
+  filter:drop-shadow(0 5px 12px rgba(245,159,0,.45))
+}
+@keyframes starIn{from{transform:scale(.3) rotate(-28deg);opacity:0}to{transform:none;opacity:1}}
+
+.res-grid{display:grid;grid-template-columns:repeat(3,1fr);width:100%;gap:10px}
+.res-grid div{background:var(--surface-2);border-radius:var(--r-md);padding:11px 6px}
+.res-grid b{display:block;font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.res-grid span{font-size:11.5px;color:var(--muted)}
+
+.res-wrong{width:100%;background:var(--err-soft);border-radius:var(--r-md);padding:11px 13px;text-align:left;max-height:26vh;overflow:auto}
+.res-wrong-h{font-size:11.5px;font-weight:700;color:var(--err);margin-bottom:6px}
+.res-wrong-i{display:flex;align-items:baseline;gap:9px;font-size:13px;padding:2px 0}
+.res-wrong-i b{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink);flex:0 0 auto}
+.res-wrong-i span{color:var(--muted);font-size:12px;min-width:0;word-break:break-word}
 .switch input:checked::after{transform:translateX(18px)}
 
 /* ---------- Toast ---------- */
@@ -385,6 +501,16 @@ svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke
   .key{height:clamp(42px,5.6vh,66px);font-size:19px;border-radius:11px}
 
   .grid-2{grid-template-columns:repeat(4,1fr)}
+  .lv-grid{grid-template-columns:repeat(3,1fr);gap:13px}
+  .lv-card{padding:16px 17px}
+  .lv-card .lv-no{font-size:26px}
+  .lv-card .lv-name,.lv-card .lv-score{font-size:12.5px}
+  .lv-card .lv-stars i{width:17px;height:17px}
+  .lv-summary b{font-size:25px}
+  .hud{height:clamp(30px,3.4vh,38px)}
+  .hud-lives i{width:clamp(17px,1.9vh,21px);height:clamp(17px,1.9vh,21px)}
+  .hud-score b{font-size:clamp(18px,2.1vh,22px)}
+  .btn-level{height:clamp(56px,6.4vh,72px);font-size:18px}
   .tile b{font-size:28px}
   .wrong-list{max-height:58vh}
   .sheet{border-radius:26px 26px 0 0}
@@ -394,62 +520,76 @@ svg:not(.brand-mark){width:22px;height:22px;fill:none;stroke:currentColor;stroke
   .switch{font-size:15.5px}
 }
 /* 矮宽屏（平板横屏、分屏窗口）：竖向收一档。
-   答题后反馈展开时内容最多，这一档保证「提示 + 答案 + 反馈 + 键盘 + 按钮」仍能一屏放下。
-   上界用 860 而不是 900，是为了不误伤 1440x900 这类桌面窗口（桌面不显示虚拟键盘，本就宽松）。
+   答题后反馈展开时内容最多，这一档保证「提示 + 答案 + 反馈 + 键盘 + 按钮 + HUD」仍能一屏放下。
+   上界用 960 而不是 860：闯关模式的 HUD 让内容整体高了一截，
+   常规平板档要视口高 ≥940 才放得下，所以这一档必须覆盖到 960 才能接住 860–940 这段。
 
    和窄屏档同样的思路：纵向尺寸全部 vh 驱动。
-   - vh 系数按 **860px** 定标（560→860 区间里 860 处取到的值与改前完全一致）
+   - vh 系数按 **860px** 定标（560→960 区间里 860 处取到的值与改前一致）
    - clamp 的 min 值按 **560px** 定标（这段以下 vh 中值已小于 min，实际取 min）
-   这样 560→860 平滑收缩，既不会在 860 处跳变，也不会在矮高度上被 min 兜住而溢出。
+   这样 560→960 平滑收缩，既不会在分档处跳变，也不会在矮高度上被 min 兜住而溢出。
    实测溢出量只与高度有关、与宽度无关（820 宽与 1133 宽结果逐项相同）。
 
-   已知的边界：视口高 560/568 时仍溢出约 12px。这个尺寸在移动端不存在
+   已知的边界：视口高 560–640 时仍溢出约 40px。这个尺寸在移动端不存在
    （平板横屏最矮是 iPad mini 6 的 744，手机横屏宽度都 <700 会走窄屏档），
    只可能出现在桌面浏览器窗口，而桌面不显示虚拟键盘 —— 实测 820x560 桌面上下文溢出 0px。
    因此不为它再加一层断点。 */
-@media (min-width:700px) and (max-height:860px){
+@media (min-width:700px) and (max-height:960px){
   .topbar-in{height:clamp(38px,6.512vh,56px)}
   .main{padding-top:clamp(8px,1.628vh,14px);padding-bottom:clamp(12px,2.558vh,22px)}
   #view-quiz.is-active{gap:clamp(6px,1.279vh,11px)}
   .prompt-card{padding:clamp(9px,1.86vh,16px) 20px}
-  .prompt-zh{font-size:clamp(19px,3vh,34px)}
-  .answer{min-height:clamp(36px,7.442vh,64px)}
+  .prompt-zh{font-size:clamp(17px,3vh,34px)}
+  .quiz-top .icon-btn{width:clamp(26px,4.6vh,38px);height:clamp(26px,4.6vh,38px)}
+  .answer{min-height:clamp(36px,7vh,64px)}
   .answer-text{font-size:clamp(21px,3.6vh,36px)}
   .feedback{padding:clamp(7px,1.279vh,11px) 14px}
-  .fb-detail{margin-top:clamp(3px,.581vh,5px);font-size:clamp(10px,1.512vh,13px);line-height:1.5}
+  .fb-detail{margin-top:clamp(3px,.581vh,5px);font-size:clamp(9.5px,1.512vh,13px);line-height:1.5}
   .kbd{padding:clamp(5px,1.047vh,9px) 8px clamp(3px,.581vh,5px);gap:clamp(4px,.698vh,6px)}
   .kbd-row{gap:clamp(4px,.814vh,7px)}
-  .key{height:clamp(26px,5.2vh,50px);font-size:clamp(13px,1.977vh,17px)}
-  .btn{height:clamp(30px,5.4vh,56px);font-size:clamp(13px,1.86vh,16px)}
+  .key{height:clamp(26px,4.9vh,50px);font-size:clamp(13px,1.977vh,17px)}
+  .btn{height:clamp(26px,5.1vh,56px);font-size:clamp(13px,1.86vh,16px)}
+  .hud{height:clamp(16px,2.9vh,30px);gap:8px}
+  .hud-lives i{width:clamp(13px,1.7vh,17px);height:clamp(13px,1.7vh,17px)}
+  .hud-combo{font-size:clamp(11px,1.4vh,12.5px);padding:2px 7px}
+  .hud-score{font-size:clamp(11px,1.4vh,13px)}
+  .hud-score b{font-size:clamp(15px,1.9vh,18px)}
 }
 /* 窄屏手机 + 矮（小屏机、多数安卓机、横屏手机、分屏）：
    答题后反馈展开是整个应用内容最高的状态，这一档保证它一屏放得下。
    「下一个」按钮掉到屏幕外是要命的——答完题必须能直接点下一题。
-   纵向尺寸一律用 vh 驱动，从 560px 到 800px 平滑收缩，避免分档跳变产生断层。
-   上界取 800：实测普通档位要视口高 ≥800 才放得下。
+   纵向尺寸一律用 vh 驱动，从 560px 到 880px 平滑收缩，避免分档跳变产生断层。
+   上界取 880（而不是 800）：闯关模式比自由听写多了 HUD 一行，
+   整个内容最高状态要视口高 ≥858 才放得下，所以这一档必须覆盖到 880 才能接住。
 
    各 clamp 的 **min 值**按 560px 高度定标（不是 600）：
    600px 以下 vh 中值已经小于 min，实际取的就是 min，所以只有 min 决定这段能否放下。
    把 min 压到「560px 高度刚好不溢出」，600px 以上由 vh 中值接管、完全不受影响，
-   因此调 min 不会在 600px 处制造新的断层。 */
-@media (max-width:699px) and (max-height:800px){
+   因此调 min 不会在分档处制造新的断层。 */
+@media (max-width:699px) and (max-height:880px){
   .topbar-in{height:clamp(40px,7.4vh,56px)}
   .main{padding-top:clamp(6px,2vh,14px);padding-bottom:clamp(8px,2.4vh,16px)}
   #view-quiz.is-active{gap:clamp(5px,1.1vh,8px)}
-  .quiz-top .icon-btn{width:clamp(28px,4.6vh,38px);height:clamp(28px,4.6vh,38px);border-radius:10px}
+  .quiz-top .icon-btn{width:clamp(25px,4.6vh,38px);height:clamp(25px,4.6vh,38px);border-radius:10px}
   .quiz-top .icon-btn svg{width:clamp(16px,2.6vh,22px);height:clamp(16px,2.6vh,22px)}
   .prompt-card{padding:clamp(8px,2vh,16px) 16px}
   .prompt-zh{font-size:clamp(17px,3.4vh,28px)}
   .prompt-pos{font-size:12px;margin-top:4px;min-height:16px}
-  .answer{min-height:clamp(40px,8vh,70px)}
+  .answer{min-height:clamp(40px,7.4vh,70px)}
   .answer-text{font-size:clamp(18px,3.4vh,30px)}
   .feedback{padding:clamp(7px,1.6vh,13px) 13px}
-  .fb-detail{margin-top:clamp(3px,.6vh,5px);font-size:clamp(11px,1.6vh,13px);line-height:1.4}
+  .fb-detail{margin-top:clamp(3px,.6vh,5px);font-size:clamp(10px,1.6vh,13px);line-height:1.4}
   .kbd{padding:clamp(5px,1.1vh,9px) 6px clamp(3px,.6vh,5px);gap:clamp(4px,.8vh,6px)}
   .kbd-row{gap:clamp(4px,.8vh,6px)}
-  .key{height:clamp(30px,5.6vh,44px);font-size:clamp(13px,2.1vh,17px)}
+  .key{height:clamp(27px,5.1vh,44px);font-size:clamp(13px,2.1vh,17px)}
   .quiz-actions{margin-top:clamp(4px,1vh,10px)}
-  #view-quiz .btn{height:clamp(34px,5.8vh,50px);font-size:clamp(13px,2vh,16px)}
+  #view-quiz .btn{height:clamp(26px,5.2vh,50px);font-size:clamp(13px,2vh,16px)}
+  .hud{height:clamp(14px,2.4vh,30px);gap:7px}
+  .hud-lives{gap:4px}
+  .hud-lives i{width:clamp(12px,1.8vh,17px);height:clamp(12px,1.8vh,17px)}
+  .hud-combo{font-size:clamp(10.5px,1.5vh,12.5px);padding:2px 7px}
+  .hud-score{font-size:clamp(11px,1.5vh,13px)}
+  .hud-score b{font-size:clamp(14px,2vh,18px)}
 }
 /* ---------- 减弱动效 ---------- */
 @media (prefers-reduced-motion: reduce){

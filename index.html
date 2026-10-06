@@ -135,7 +135,45 @@
       </div>
 
       <button class="btn btn-primary btn-lg" id="btn-start" type="button">开始听写</button>
+
+      <button class="btn btn-level" id="btn-levels" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 4h10v4.5a5 5 0 0 1-10 0V4Z"/>
+          <path d="M7 5.5H5.2a1.7 1.7 0 0 0 0 3.4H7M17 5.5h1.8a1.7 1.7 0 0 1 0 3.4H17"/>
+          <path d="M12 13.5V17M8.5 20h7M12 17c-1.6 0-2.6 1.2-3.5 3h7c-.9-1.8-1.9-3-3.5-3Z"/>
+        </svg>
+        <span class="lv-t">闯关模式</span>
+        <span class="lv-s" id="lv-sub">—</span>
+      </button>
+
       <button class="btn btn-ghost" id="btn-stats" type="button">查看统计与错题</button>
+    </section>
+
+    <!-- ============ 关卡列表 ============ -->
+    <section class="view" id="view-levels">
+      <div class="hero">
+        <h1>闯关模式</h1>
+        <p>每关 10 题 · 3 颗心 · 每题 15 秒。答对越多星星越多，拿到 1 星即可解锁下一关。</p>
+      </div>
+
+      <div class="card lv-summary">
+        <div>
+          <b id="lv-total-stars">0</b>
+          <span>已获星星</span>
+        </div>
+        <div>
+          <b id="lv-cleared">0</b>
+          <span>已通关卡</span>
+        </div>
+        <div>
+          <b id="lv-best">0</b>
+          <span>最高总分</span>
+        </div>
+      </div>
+
+      <div class="lv-grid" id="lv-grid"></div>
+
+      <button class="btn btn-ghost" id="btn-levels-back" type="button">返回首页</button>
     </section>
 
     <!-- ============ 听写页 ============ -->
@@ -145,12 +183,23 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div class="quiz-progress">
-          <div class="quiz-bar"><i id="quiz-bar-fill"></i></div>
+          <div class="bars">
+            <div class="quiz-bar"><i id="quiz-bar-fill"></i></div>
+            <!-- 本题倒计时：叠在进度条正下方，不额外占一行高度 -->
+            <div class="timer" id="timer" hidden><i id="timer-fill"></i></div>
+          </div>
           <span id="quiz-count">0 / 0</span>
         </div>
         <button class="icon-btn" id="btn-skip" type="button" aria-label="跳过">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
         </button>
+      </div>
+
+      <!-- 闯关模式 HUD：生命 / 连击 / 得分。自由听写模式下整块隐藏 -->
+      <div class="hud" id="hud" hidden>
+        <div class="hud-lives" id="hud-lives" aria-label="剩余生命"></div>
+        <div class="hud-combo" id="hud-combo" hidden></div>
+        <div class="hud-score"><b id="hud-score">0</b><span>分</span></div>
       </div>
 
       <div class="prompt-card" id="prompt-card">
@@ -244,6 +293,25 @@
       答对即移出词库，答错放回并稍后重新出题。
     </div>
     <button class="btn btn-primary" id="btn-settings-close" type="button">完成</button>
+  </div>
+</div>
+
+<!-- ============ 关卡结算 ============ -->
+<div class="sheet-mask" id="result-mask" hidden>
+  <div class="sheet sheet-result" role="dialog" aria-modal="true" aria-labelledby="res-title">
+    <div class="sheet-grip"></div>
+    <div class="res-stars" id="res-stars"></div>
+    <h2 id="res-title">通关</h2>
+    <p class="sheet-sub" id="res-sub"></p>
+    <div class="res-grid">
+      <div><b id="res-right">0</b><span>答对</span></div>
+      <div><b id="res-score">0</b><span>得分</span></div>
+      <div><b id="res-combo">0</b><span>最高连击</span></div>
+    </div>
+    <div id="res-wrong-box"></div>
+    <button class="btn btn-primary" id="btn-res-next" type="button">下一关</button>
+    <button class="btn btn-soft" id="btn-res-retry" type="button">再挑战一次</button>
+    <button class="btn btn-ghost" id="btn-res-back" type="button">返回关卡列表</button>
   </div>
 </div>
 

@@ -10,11 +10,32 @@
     settings: 'nce1.settings.v1',
     progress: 'nce1.progress.v1',
     daily: 'nce1.daily.v1',
+    levels: 'nce1.levels.v1',
     install: 'nce1.install.dismissed',
     autoPop: 'nce1.install.popped'
   };
-  var MAX_ATTEMPT = 3;        // 同一词一轮内最多出现次数
+  var MAX_ATTEMPT = 3;        // 同一词一轮内最多出现次数（仅自由听写模式）
   var MAXLEN = 40;
+
+  /* ---------------- 闯关配置 ---------------- */
+  var LV_SPAN = 10;           // 每关覆盖的课数
+  var LV_TOTAL = 15;          // 1–144 课 → 15 关
+  var LV_Q = 10;              // 每关题量
+  var LV_LIVES = 3;           // 生命值
+  var LV_TIME = 15000;        // 每题限时（毫秒）
+  var LV_URGENT = 5000;       // 剩余时间低于此值进入告急态
+
+  /** 关卡表：第 n 关覆盖 Lesson (n-1)*10+1 到 n*10 */
+  var LEVELS = (function () {
+    var out = [];
+    for (var i = 0; i < LV_TOTAL; i++) {
+      var a = i * LV_SPAN + 1;
+      var b = Math.min(a + LV_SPAN - 1, 144);
+      out.push({ id: i + 1, a: a, b: b, name: 'Lesson ' + a + '–' + b });
+    }
+    return out;
+  })();
+  var MAX_STARS = LV_TOTAL * 3;
 
   /* ---------------- 工具 ---------------- */
   function $(id) { return document.getElementById(id); }
@@ -79,7 +100,9 @@
       load(K.settings, {})
     ),
     progress: Object.assign({ mastered: {}, wrong: {} }, load(K.progress, {})),
-    daily: Object.assign({ date: today(), done: 0, correct: 0 }, load(K.daily, {}))
+    daily: Object.assign({ date: today(), done: 0, correct: 0 }, load(K.daily, {})),
+    // 关卡进度：{ "1": { stars: 3, score: 1450, plays: 5 } }
+    levels: load(K.levels, {})
   };
   var session = null;
   var shift = false, caps = false, lastShift = 0;
@@ -87,6 +110,7 @@
   function saveSettings() { save(K.settings, state.settings); }
   function saveProgress() { save(K.progress, state.progress); }
   function saveDaily() { save(K.daily, state.daily); }
+  function saveLevels() { save(K.levels, state.levels); }
   function rollDaily() {
     if (state.daily.date !== today()) {
       state.daily = { date: today(), done: 0, correct: 0 };
@@ -116,6 +140,38 @@
     return Object.keys(state.progress.wrong).length;
   }
 
+  /* ---------------- 关卡进度 ---------------- */
+  /** 某关覆盖的词索引（与自由听写是否已掌握无关，闯关是独立的固定题库） */
+  function levelWords(lv) {
+    var out = [];
+    for (var i = 0; i < WORDS.length; i++) {
+      if (WORDS[i].l >= lv.a && WORDS[i].l <= lv.b) out.push(i);
+    }
+    return out;
+  }
+  function levelRec(id) { return state.levels[id] || null; }
+  /** 第 1 关默认解锁；其余需要上一关拿到 ≥1 星 */
+  function levelUnlocked(id) {
+    if (id <= 1) return true;
+    var prev = levelRec(id - 1);
+    return !!(prev && prev.stars >= 1);
+  }
+  function totalStars() {
+    var n = 0;
+    for (var k in state.levels) n += state.levels[k].stars || 0;
+    return n;
+  }
+  function clearedCount() {
+    var n = 0;
+    for (var k in state.levels) if ((state.levels[k].stars || 0) >= 1) n++;
+    return n;
+  }
+  function bestScore() {
+    var n = 0;
+    for (var k in state.levels) n = Math.max(n, state.levels[k].score || 0);
+    return n;
+  }
+
   /* ---------------- 视图切换 ---------------- */
   var currentView = 'home';
   var pushed = 0;            // 我们自己压入的历史条目数
@@ -131,11 +187,12 @@
       try { history.pushState({ v: view }, ''); } catch (e) { /* 忽略 */ }
     }
     currentView = view;
-    ['home', 'quiz', 'stats'].forEach(function (v) {
+    ['home', 'levels', 'quiz', 'stats'].forEach(function (v) {
       $('view-' + v).classList.toggle('is-active', v === view);
     });
     window.scrollTo(0, 0);
     if (view === 'home') renderHome();
+    if (view === 'levels') renderLevels();
     if (view === 'stats') renderStats();
   }
 
@@ -165,6 +222,41 @@
 
     $('btn-start').disabled = pool === 0;
     $('btn-start').textContent = pool === 0 ? '该范围单词已全部掌握' : '开始听写';
+
+    // 闯关入口：显示已获星数，一眼看出进度
+    $('lv-sub').textContent = totalStars() + ' / ' + MAX_STARS + ' ★';
+  }
+
+  /* ---------------- 关卡列表渲染 ---------------- */
+  function starRow(n) {
+    var out = '';
+    for (var i = 1; i <= 3; i++) out += '<i class="' + (i <= n ? 'on' : '') + '"></i>';
+    return out;
+  }
+
+  function renderLevels() {
+    $('lv-total-stars').textContent = totalStars();
+    $('lv-cleared').textContent = clearedCount();
+    $('lv-best').textContent = bestScore();
+
+    $('lv-grid').innerHTML = LEVELS.map(function (lv) {
+      var rec = levelRec(lv.id);
+      var open = levelUnlocked(lv.id);
+      var stars = rec ? rec.stars : 0;
+      var cls = 'lv-card' + (open ? '' : ' is-locked') + (stars >= 1 ? ' is-clear' : '') +
+        (stars === 3 ? ' is-perfect' : '');
+      return '<button class="' + cls + '" type="button" data-lv="' + lv.id + '"' +
+        (open ? '' : ' disabled aria-disabled="true"') + '>' +
+        '<span class="lv-no">' + lv.id + '</span>' +
+        '<span class="lv-name">' + lv.name + '</span>' +
+        (open
+          ? '<span class="lv-stars">' + starRow(stars) + '</span>' +
+            '<span class="lv-score">' + (rec && rec.score ? rec.score + ' 分' : '未挑战') + '</span>'
+          : '<span class="lv-lock">' +
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>' +
+            '通关第 ' + (lv.id - 1) + ' 关解锁</span>') +
+        '</button>';
+    }).join('');
   }
 
   /* ---------------- 统计页渲染 ---------------- */
@@ -254,6 +346,7 @@
     var n = Math.min(state.settings.daily, indices.length);
     var queue = shuffle(indices.slice()).slice(0, n);
     session = {
+      mode: 'free',
       total: queue.length,
       queue: queue,
       resolved: 0,
@@ -268,8 +361,97 @@
     nextQuestion();
   }
 
+  /* ---------------- 闯关流程 ---------------- */
+  function startLevel(id) {
+    var lv = LEVELS[id - 1];
+    if (!lv) return;
+    if (!levelUnlocked(id)) { toast('先通关第 ' + (id - 1) + ' 关'); return; }
+    var pool = levelWords(lv);
+    if (!pool.length) { toast('这一关没有词'); return; }
+
+    rollDaily();
+    var queue = shuffle(pool.slice()).slice(0, Math.min(LV_Q, pool.length));
+    session = {
+      mode: 'level',
+      level: id,
+      lv: lv,
+      total: queue.length,
+      queue: queue,
+      resolved: 0,
+      right: 0,
+      wrongList: [],          // 本关答错的词，结算时列出来
+      lives: LV_LIVES,
+      combo: 0,
+      maxCombo: 0,
+      score: 0,
+      attempts: {},
+      cur: null,
+      input: '',
+      revealed: false,
+      ok: false,
+      deadline: 0,
+      timerId: null,
+      timedOut: false
+    };
+    go('quiz');
+    nextQuestion();
+  }
+
+  /** 计分：基础 100，连击每多一层 +20，最多加到 +100 */
+  function comboScore(combo) {
+    return 100 + Math.min(combo - 1, 5) * 20;
+  }
+
+  function stopTimer() {
+    if (session && session.timerId) { clearInterval(session.timerId); session.timerId = null; }
+  }
+
+  function paintTimer(left) {
+    var l = (left == null) ? LV_TIME : Math.max(0, left);
+    // 与进度条同理：走 transform 而不是 width
+    $('timer-fill').style.transform = 'scaleX(' + (l / LV_TIME) + ')';
+    $('timer').classList.toggle('is-urgent', l <= LV_URGENT);
+  }
+
+  function startTimer() {
+    stopTimer();
+    if (session.mode !== 'level') return;
+    session.deadline = Date.now() + LV_TIME;
+    session.timedOut = false;
+    paintTimer(LV_TIME);
+    session.timerId = setInterval(function () {
+      if (!session || session.revealed) return;
+      var left = session.deadline - Date.now();
+      if (left <= 0) { stopTimer(); paintTimer(0); submitTimeout(); return; }
+      paintTimer(left);
+    }, 200);
+  }
+
+  /** 生命值渲染：实心 / 空心 */
+  function paintHud() {
+    var level = session && session.mode === 'level';
+    $('hud').hidden = !level;
+    $('timer').hidden = !level;
+    $('btn-skip').hidden = !!level;      // 闯关模式不给跳过
+    if (!level) return;
+
+    var h = '';
+    for (var i = 1; i <= LV_LIVES; i++) h += '<i class="' + (i <= session.lives ? 'on' : '') + '"></i>';
+    $('hud-lives').innerHTML = h;
+
+    var cb = $('hud-combo');
+    if (session.combo >= 2) {
+      cb.hidden = false;
+      cb.textContent = '⚡ 连击 ×' + session.combo;
+      cb.classList.toggle('is-hot', session.combo >= 5);
+    } else {
+      cb.hidden = true;
+    }
+    $('hud-score').textContent = session.score;
+  }
+
   function nextQuestion() {
-    if (!session.queue.length) return finishSession();
+    if (!session.queue.length) return session.mode === 'level' ? finishLevel() : finishSession();
     session.cur = session.queue[0];
     session.input = '';
     session.revealed = false;
@@ -291,7 +473,9 @@
     $('answer').classList.remove('is-ok', 'is-err');
     $('quiz-count').textContent = (session.resolved + 1) + ' / ' + session.total;
     paintBar();
+    paintHud();
     renderAnswer();
+    startTimer();
   }
 
   /** 进度条：走 transform 而不是 width，避免每帧重新布局 */
@@ -325,26 +509,41 @@
     renderAnswer();
   }
 
-  function submit() {
+  // 注意：submit 会作为 click 的事件处理器绑定，事件对象会被当成第一个实参传进来。
+  // 所以这里不能直接收 timedOut 参数，必须用零参包装，否则 event 对象是 truthy，
+  // 会被误判成「超时提交」。
+  function submit() { doSubmit(false); }
+  function submitTimeout() { doSubmit(true); }
+
+  /** @param {boolean} timedOut 由倒计时触发的提交，强制判错 */
+  function doSubmit(timedOut) {
     if (session.revealed) return nextStep();
-    if (!norm(session.input)) { toast('先输入答案再提交'); return; }
+    if (!timedOut && !norm(session.input)) { toast('先输入答案再提交'); return; }
+
+    stopTimer();
 
     var idx = session.cur, w = WORDS[idx];
-    var ok = norm(session.input) === norm(w.w);
+    var ok = !timedOut && norm(session.input) === norm(w.w);
     session.revealed = true;
     session.ok = ok;
+    session.timedOut = !!timedOut;
     session.attempts[idx] = (session.attempts[idx] || 0) + 1;
+
+    var isLevel = session.mode === 'level';
 
     var fb = $('feedback');
     fb.hidden = false;
     fb.className = 'feedback ' + (ok ? 'is-ok' : 'is-err');
     $('fb-mark').textContent = ok ? '✓' : '✕';
-    $('fb-title').textContent = ok ? '正确' : '拼写不对';
+    $('fb-title').textContent = ok ? '正确' : (timedOut ? '时间到' : '拼写不对');
     $('fb-detail').innerHTML =
       '<span class="en">' + esc(w.w) + '</span>' +
       (w.ph ? ' <span class="ipa">/' + esc(w.ph) + '/</span>' : '') +
       '<br>' + esc(w.z) +
-      (ok ? '' : '<br><span style="color:var(--muted);font-size:13px">你写的是：' + esc(session.input || '（空）') + '</span>');
+      (ok ? '' : '<br><span style="color:var(--muted);font-size:13px">你写的是：' +
+        esc(session.input || (timedOut ? '（超时未作答）' : '（空）')) + '</span>') +
+      (isLevel && ok ? '<br><span class="fb-gain">+' + comboScore(session.combo + 1) + ' 分' +
+        (session.combo + 1 >= 2 ? ' · 连击 ×' + (session.combo + 1) : '') + '</span>' : '');
     $('answer').classList.toggle('is-ok', ok);
     $('answer').classList.toggle('is-err', !ok);
     renderAnswer();
@@ -362,25 +561,47 @@
       saveProgress(); saveDaily();
       session.queue.shift();
       session.resolved++; session.right++;
+
+      if (isLevel) {
+        session.combo++;
+        session.maxCombo = Math.max(session.maxCombo, session.combo);
+        session.score += comboScore(session.combo);
+        // 连击越高，音调越高，给一点即时正反馈
+        if (session.combo >= 3) tone([880 + Math.min(session.combo, 8) * 60], 0.12, 'sine', 0.13);
+      }
     } else {
       sfxNo();
       var rec = state.progress.wrong[idx] || { n: 0 };
       rec.n++; rec.t = Date.now(); rec.fixed = false;
       state.progress.wrong[idx] = rec;
       saveProgress();
-      // 答错：放回词库，稍后在随机位置重新出题
-      session.queue.shift();
-      if (session.attempts[idx] < MAX_ATTEMPT) {
-        var pos = session.queue.length ? 1 + Math.floor(Math.random() * session.queue.length) : 0;
-        session.queue.splice(pos, 0, idx);
-      } else {
+
+      if (isLevel) {
+        // 闯关：每题只出一次，不回炉；答错扣一颗心并清空连击
+        session.combo = 0;
+        session.lives--;
+        session.wrongList.push(idx);
+        session.queue.shift();
         session.resolved++;
+      } else {
+        // 自由听写：放回词库，稍后在随机位置重新出题
+        session.queue.shift();
+        if (session.attempts[idx] < MAX_ATTEMPT) {
+          var pos = session.queue.length ? 1 + Math.floor(Math.random() * session.queue.length) : 0;
+          session.queue.splice(pos, 0, idx);
+        } else {
+          session.resolved++;
+        }
       }
     }
     paintBar();
-    $('btn-next').textContent = session.queue.length ? '下一个' : '完成';
+    paintHud();
 
-    if (state.settings.auto) {
+    var dead = isLevel && session.lives <= 0;
+    var empty = !session.queue.length;
+    $('btn-next').textContent = (dead || empty) ? (isLevel ? '查看结果' : '完成') : '下一个';
+
+    if (state.settings.auto && !dead) {
       setTimeout(function () {
         if (session && session.revealed) nextStep();
       }, ok ? 800 : 1700);
@@ -389,15 +610,18 @@
 
   function nextStep() {
     if (!session) return;
+    stopTimer();
+    if (session.mode === 'level' && session.lives <= 0) return finishLevel();
     if (session.queue.length) {
       nextQuestion();
     } else {
-      finishSession();
+      session.mode === 'level' ? finishLevel() : finishSession();
     }
   }
 
   function skip() {
     if (!session) return;
+    if (session.mode === 'level') return;      // 闯关模式不给跳过
     if (session.revealed) return nextStep();
     session.queue.shift();
     session.resolved++;
@@ -410,6 +634,80 @@
     session = null;
     go('home');
     toast('本轮完成：' + right + ' / ' + total + ' 词');
+  }
+
+  /* ---------------- 关卡结算 ---------------- */
+  function finishLevel() {
+    stopTimer();
+    var s = session;
+    session = null;
+    if (!s) return;
+
+    var total = s.total;
+    // 星级：全对 3 星，错 1 个 2 星，错 2 个 1 星；生命耗尽或错更多则 0 星（失败）
+    var stars = 0;
+    if (s.lives > 0) {
+      if (s.right >= total) stars = 3;
+      else if (s.right >= total - 1) stars = 2;
+      else if (s.right >= total - 2) stars = 1;
+    }
+
+    var rec = state.levels[s.level] || { stars: 0, score: 0, plays: 0 };
+    var improved = stars > rec.stars;
+    rec.plays = (rec.plays || 0) + 1;
+    rec.stars = Math.max(rec.stars || 0, stars);
+    rec.score = Math.max(rec.score || 0, s.score);
+    state.levels[s.level] = rec;
+    saveLevels();
+
+    paintHud();
+    showResult(s, stars, improved);
+  }
+
+  function showResult(s, stars, improved) {
+    var total = s.total;
+    var passed = stars >= 1;
+    var nextLv = LEVELS[s.level];                 // 下一关（id = level + 1）
+
+    $('res-stars').innerHTML = (function () {
+      var out = '';
+      for (var i = 1; i <= 3; i++) {
+        out += '<i class="' + (i <= stars ? 'on' : '') + '" style="animation-delay:' + (i * 90) + 'ms"></i>';
+      }
+      return out;
+    })();
+    $('res-title').textContent = passed
+      ? (stars === 3 ? '完美通关！' : '通关！')
+      : (s.lives <= 0 ? '生命耗尽' : '差一点点');
+    $('res-sub').textContent = passed
+      ? (improved ? '新纪录 · ' + (nextLv ? '已解锁第 ' + (s.level + 1) + ' 关' : '全部关卡通关') : '成绩已记录')
+      : '拿到 1 星才能解锁下一关，再试一次吧';
+    $('res-right').textContent = s.right + ' / ' + total;
+    $('res-score').textContent = s.score;
+    $('res-combo').textContent = '×' + s.maxCombo;
+
+    var box = $('res-wrong-box');
+    if (s.wrongList.length) {
+      box.innerHTML = '<div class="res-wrong"><div class="res-wrong-h">本关错题</div>' +
+        s.wrongList.map(function (i) {
+          var w = WORDS[i];
+          return '<div class="res-wrong-i"><b>' + esc(w.w) + '</b><span>' + esc(w.z) + '</span></div>';
+        }).join('') + '</div>';
+    } else {
+      box.innerHTML = '';
+    }
+
+    var canNext = passed && s.level < LV_TOTAL;
+    $('btn-res-next').hidden = !canNext;
+    $('btn-res-next').textContent = canNext ? '挑战第 ' + (s.level + 1) + ' 关' : '';
+    $('btn-res-retry').textContent = passed ? '再刷一次' : '重新挑战';
+
+    if (passed) tone([659, 880, 1175], 0.2, 'sine', 0.15);
+    else tone([196, 147], 0.3, 'triangle', 0.15);
+
+    $('result-mask').hidden = false;
+    $('result-mask').dataset.level = s.level;
+    $('result-mask').dataset.passed = passed ? '1' : '0';
   }
 
   /* ---------------- 安装引导 ---------------- */
@@ -547,6 +845,29 @@
     $('btn-start').addEventListener('click', function () { startSession(poolIdx()); });
     $('btn-stats').addEventListener('click', function () { go('stats'); });
     $('btn-back-home').addEventListener('click', function () { go('home'); });
+
+    // 闯关
+    $('btn-levels').addEventListener('click', function () { go('levels'); });
+    $('btn-levels-back').addEventListener('click', function () { go('home'); });
+    $('lv-grid').addEventListener('click', function (e) {
+      var c = e.target.closest('[data-lv]');
+      if (!c || c.disabled) return;
+      startLevel(+c.dataset.lv);
+    });
+    $('btn-res-retry').addEventListener('click', function () {
+      var id = +$('result-mask').dataset.level;
+      $('result-mask').hidden = true;
+      startLevel(id);
+    });
+    $('btn-res-next').addEventListener('click', function () {
+      var id = +$('result-mask').dataset.level + 1;
+      $('result-mask').hidden = true;
+      startLevel(id);
+    });
+    $('btn-res-back').addEventListener('click', function () {
+      $('result-mask').hidden = true;
+      go('levels');
+    });
     $('btn-retry-wrong').addEventListener('click', function () {
       var ids = Object.keys(state.progress.wrong).filter(function (k) { return WORDS[+k]; }).map(Number);
       if (!ids.length) return;
@@ -560,7 +881,8 @@
       if (b.dataset.armed) {
         state.progress = { mastered: {}, wrong: {} };
         state.daily = { date: today(), done: 0, correct: 0 };
-        saveProgress(); saveDaily();
+        state.levels = {};
+        saveProgress(); saveDaily(); saveLevels();
         delete b.dataset.armed;
         b.textContent = '重置全部进度';
         renderStats(); toast('进度已清空');
@@ -580,7 +902,8 @@
     });
     $('btn-settings-close').addEventListener('click', function () {
       $('settings-mask').hidden = true;
-      renderHome();
+      if (currentView === 'home') renderHome();
+      if (currentView === 'levels') renderLevels();
     });
     ['hints', 'auto', 'sound'].forEach(function (k) {
       $('opt-' + k).addEventListener('change', function () {
@@ -624,16 +947,21 @@
 
     // 返回键 / 手势返回
     window.addEventListener('popstate', function () {
+      // 结算弹层开着时，返回键先关弹层（成绩已落盘，关掉不丢）
+      if (!$('result-mask').hidden) { $('result-mask').hidden = true; return; }
       if (currentView !== 'home') { pushed = 0; go('home', true); }
     });
   }
 
   function quitQuiz() {
+    var wasLevel = !!(session && session.mode === 'level');
     if (session && session.resolved > 0 && !session.revealed) {
-      if (!confirm('结束本轮听写？已答对的单词会保留进度。')) return;
+      var msg = wasLevel ? '结束本关挑战？本关成绩不会保存。' : '结束本轮听写？已答对的单词会保留进度。';
+      if (!confirm(msg)) return;
     }
+    stopTimer();
     session = null;
-    go('home');
+    go(wasLevel ? 'levels' : 'home');
   }
 
   /* ---------------- 启动 ---------------- */
@@ -656,9 +984,10 @@
           // 淡出结束后彻底摘掉：否则那条无限循环的加载动画会一直跑下去
           setTimeout(function () { sp.hidden = true; }, 600);
         }, 520);
-        // 桌面快捷方式：?action=quiz / ?action=stats
+        // 桌面快捷方式：?action=quiz / ?action=stats / ?action=levels
         var act = new URLSearchParams(location.search).get('action');
         if (act === 'stats') go('stats');
+        if (act === 'levels') go('levels');
         if (act === 'quiz') {
           var p = poolIdx();
           if (p.length) startSession(p); else toast('这个范围没有可练的单词');

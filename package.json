@@ -1,14 +1,15 @@
 {
   "name": "nce1-dictation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "《新概念英语》第一册单词听写 PWA —— 内置虚拟键盘，彻底规避系统输入法联想",
   "scripts": {
     "serve": "node test/serve.js",
     "test": "node test/verify.js",
     "test:edge": "node test/edge.js",
+    "test:level": "node test/level.js",
     "test:live": "node test/livecheck.js",
-    "test:all": "node test/verify.js && node test/edge.js"
+    "test:all": "node test/verify.js && node test/edge.js && node test/level.js"
   },
   "devDependencies": {
     "playwright-core": "^1.40.0"
