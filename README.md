@@ -133,7 +133,7 @@ nce1-dictation-pwa/
 ├── app.js                  全部逻辑：抽词、判分、记忆算法、进度持久化、安装引导
 ├── sw.js                   Service Worker，离线缓存
 ├── manifest.webmanifest    PWA 清单
-├── data/words.json         词库 648 条（46 KB）
+├── data/words.json         词库 647 条（46 KB）
 ├── icons/                  192 / 512 / maskable-512 / apple-touch-icon / favicon
 ├── 启动预览.command         本地预览启动器
 └── README.md
@@ -143,7 +143,7 @@ nce1-dictation-pwa/
 
 ## 五、词库说明
 
-- **648 个单词 / 短语**，覆盖 **Lesson 1–143 的全部 72 个课次**，每课 2–14 词，平均 9 词
+- **647 个单词 / 短语**，覆盖 **Lesson 1–143 的全部 72 个课次**，每课 2–14 词，平均 9 词
 - 每条包含：英文、中文释义、词性、音标、所属课号
 - 数据来源：开源仓库 `LiDuoMiao/new-concept-english` 的 NCE1 逐课笔记（按课次成对组织，含释义与音标），并做了去重、释义分隔符归一化
 - 课号按教材惯例挂在**奇数课**（新词出现在奇数课的 New Words and Expressions 中），偶数课为句型练习
@@ -167,7 +167,7 @@ nce1-dictation-pwa/
 
 线上部署后**又对 `https://720info.github.io/nce1-dictation/` 实跑了一遍**，9 项全通过、零控制台报错：
 
-- 首页渲染、词库从线上加载（648 词）
+- 首页渲染、词库从线上加载（647 词）
 - HTTPS 下自动弹出安装引导
 - `manifest.webmanifest` 以 `application/manifest+json` 返回，`display: standalone`、3 个图标、主题色正确
 - 进入听写页、判分生效

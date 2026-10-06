@@ -311,11 +311,13 @@
 
   function push(ch) {
     if (session.revealed || session.input.length >= MAXLEN) return;
+    lastShift = 0;                     // 敲了别的键，双击 shift 的计时就作废
     session.input += ch;
     renderAnswer();
   }
   function backspace() {
     if (session.revealed || !session.input) return;
+    lastShift = 0;
     session.input = session.input.slice(0, -1);
     renderAnswer();
   }
