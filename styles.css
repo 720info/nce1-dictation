@@ -59,7 +59,11 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 
 /* ---------- 外框 ---------- */
 #app{
-  max-width:520px;margin:0 auto;min-height:100dvh;background:var(--bg);
+  max-width:520px;margin:0 auto;background:var(--bg);
+  /* 渐进增强：老浏览器（iOS < 16.4 / Chrome < 108）不认 dvh，整条会被丢弃，
+     所以先给 vh 兜底，再用 dvh 覆盖 —— 移动端地址栏收放时高度才准确 */
+  min-height:100vh;
+  min-height:100dvh;
   display:flex;flex-direction:column;
   padding-bottom:env(safe-area-inset-bottom);
 }

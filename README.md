@@ -32,7 +32,8 @@
 
 ```bash
 cd nce1-dictation-pwa
-python3 -m http.server 8080
+npm run serve          # 等价于 node test/serve.js，自动选端口并打印局域网地址
+# 或者：python3 -m http.server 8080
 ```
 
 > ⚠️ **不能直接双击 `index.html` 打开**（`file://` 协议下浏览器禁止读取词库、注册 Service Worker）。
@@ -135,7 +136,14 @@ nce1-dictation-pwa/
 ├── manifest.webmanifest    PWA 清单
 ├── data/words.json         词库 647 条（46 KB）
 ├── icons/                  192 / 512 / maskable-512 / apple-touch-icon / favicon
-├── 启动预览.command         本地预览启动器
+├── test/                   自动化验收（自带静态服务器，不依赖外部依赖服务）
+│   ├── lib.js                公共库：headless shell 定位 / 静态服务器 / 点击助手 / 断言器
+│   ├── verify.js             主验收 43 项
+│   ├── edge.js               边界验收 20 项
+│   ├── livecheck.js          线上验收 9 项
+│   └── serve.js              本地预览服务器
+├── package.json            脚本入口（npm test / test:edge / test:live / serve）
+├── 启动预览.command         本地预览启动器（双击即用）
 └── README.md
 ```
 
@@ -152,24 +160,49 @@ nce1-dictation-pwa/
 
 ---
 
-## 六、已验证项
+## 六、自动化验收
 
-用 headless Chromium 按 iPhone 视口 + 桌面视口跑过完整交互测试，43 项断言全通过、零控制台报错，包括：
+三套脚本都在 `test/` 里，**自带静态服务器**（临时端口），不需要你事先起服务；跑完把截图落到 `test/shots/`。
+
+```bash
+npm test            # 主验收 43 项：功能 + 交互 + 离线
+npm run test:edge   # 边界验收 20 项：已安装 / 小屏 / 长短语 / 平板 / 横屏
+npm run test:live   # 线上验收 9 项：直接打 GitHub Pages 地址
+npm run test:all    # 前两套连着跑
+```
+
+依赖只有一个 `playwright-core`（**不下载浏览器**，复用系统缓存的 `chrome-headless-shell`；`test/lib.js` 会自动定位最新版本，也可用 `CHROME_SHELL=/path/to/shell` 指定）。
+
+### 主验收（43 项）
+
 - 页面内可编辑元素数为 **0**（系统输入法无法唤起）
-- 虚拟键盘 26 字母 + 标点键齐全、大小写切换正确
+- 虚拟键盘 26 字母 + 标点键齐全、大小写切换正确（含「连点 shift 不误锁大写」的回归）
 - 物理键盘输入 / `Enter` 提交 / 下一题
-- 答错 → 该词在后续随机位置重新出题（实测序列：`游客；旅行者` 答错 → 中间 4 题 → 第 6 题重新出现）
+- 答错 → 该词在后续随机位置重新出题（实测序列：`法国的；法国人` 答错 → 中间 4 题 → 第 6 题重新出现）
 - 答对 → 移出词库，今日完成数与正确率同步
 - 错题记录含课号、错误次数与「已订正」状态
 - 刷新后进度保留
 - Service Worker 激活、预缓存建立、**断网重载后仍可正常听写**
 - 桌面端自动隐藏虚拟键盘、限宽 520px 居中
 
-线上部署后**又对 `https://720info.github.io/nce1-dictation/` 实跑了一遍**，9 项全通过、零控制台报错：
+### 边界验收（20 项）
+
+- 未安装时自动弹安装引导；`navigator.standalone = true`（iOS 真实 API）时**不弹**
+- iPhone SE 375×667 / iPhone 15 393×852：听写页整屏放得下，无纵向滚动，提交按钮与键盘完整可见
+- 超长短语 `Royal Air Force` 完整输入（含空格与大写），不撑破容器、字号自动缩小、无横向滚动
+- iPad 820×1180 与横屏 844×390 无横向滚动
+- `styles.css` 里 `#app` 的 `min-height` 有 `100vh` 兜底在前、`100dvh` 在后（老浏览器保护）
+
+### 线上验收（9 项）
 
 - 首页渲染、词库从线上加载（647 词）
 - HTTPS 下自动弹出安装引导
 - `manifest.webmanifest` 以 `application/manifest+json` 返回，`display: standalone`、3 个图标、主题色正确
 - 进入听写页、判分生效
-- **Service Worker 在 HTTPS 下成功激活**，预缓存 `nce1-dictation-1.0.0` 建立
+- **Service Worker 在 HTTPS 下成功激活**，预缓存 `nce1-dictation-1.0.2` 建立
 - **断网重载后仍可正常听写**
+
+### 兼容性说明
+
+`app.js` 通篇 ES5（`var` / `function` / IIFE），无箭头函数、模板字符串、可选链。CSS 里 `backdrop-filter` 已带 `-webkit-` 前缀，`inset` 需 iOS 14.5+，flex `gap` 需 iOS 14.1+，`100dvh` 需 iOS 16.4+（已有 `100vh` 兜底）——**iOS 15 及以上均正常**。
+

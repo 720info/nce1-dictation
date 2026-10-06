@@ -1,0 +1,19 @@
+{
+  "name": "nce1-dictation",
+  "version": "1.0.2",
+  "private": true,
+  "description": "《新概念英语》第一册单词听写 PWA —— 内置虚拟键盘，彻底规避系统输入法联想",
+  "scripts": {
+    "serve": "node test/serve.js",
+    "test": "node test/verify.js",
+    "test:edge": "node test/edge.js",
+    "test:live": "node test/livecheck.js",
+    "test:all": "node test/verify.js && node test/edge.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.40.0"
+  },
+  "comment": {
+    "playwright-core": "本机已装在 ~/.workbuddy-ai/binaries/node/workspace；test/lib.js 会先常规 require，失败再回退到该路径。不需要联网安装浏览器（复用系统缓存的 chrome-headless-shell）。"
+  }
+}
