@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>新概念一册 · 单词听写</title>
+<meta name="description" content="《新概念英语》第一册单词听写练习，离线可用、内置虚拟键盘、按课范围抽词。">
+
+<!-- ===== PWA 清单 ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4c6ef5">
+<meta name="color-scheme" content="light">
+
+<!-- ===== 苹果 iOS 全屏独立模式适配 ===== -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="单词听写">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<!-- ===== 其它 ===== -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- 启动页（安装到桌面后打开时先显示，避免白屏） -->
+<div id="splash" class="splash">
+  <img src="icons/icon-192.png" alt="" class="splash-logo">
+  <div class="splash-name">新概念一册 · 单词听写</div>
+  <div class="splash-bar"><i></i></div>
+</div>
+
+<div id="app" hidden>
+
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brand">
+        <span class="brand-mark">N<em>1</em></span>
+        <span class="brand-text">单词听写</span>
+      </div>
+      <button id="btn-settings" class="icon-btn" type="button" aria-label="设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.7 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6h.09A1.7 1.7 0 0 0 10.1 3.05V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ============ 首页 ============ -->
+    <section class="view is-active" id="view-home">
+      <div class="hero">
+        <h1>今日听写</h1>
+        <p id="hero-sub">选好课程范围，随机抽词，看着中文写英文。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>课程范围</h2>
+          <span class="badge" id="range-count">—</span>
+        </div>
+
+        <div class="field">
+          <div class="field-label"><span>起始课</span><b id="lbl-start">1</b></div>
+          <div class="field-ctrl">
+            <button class="step" type="button" data-step="start:-1" aria-label="起始课减一">−</button>
+            <input class="range" type="range" id="rng-start" min="1" max="144" step="1" value="1">
+            <button class="step" type="button" data-step="start:1" aria-label="起始课加一">+</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label"><span>结束课</span><b id="lbl-end">144</b></div>
+          <div class="field-ctrl">
+            <button class="step" type="button" data-step="end:-1" aria-label="结束课减一">−</button>
+            <input class="range" type="range" id="rng-end" min="1" max="144" step="1" value="144">
+            <button class="step" type="button" data-step="end:1" aria-label="结束课加一">+</button>
+          </div>
+        </div>
+
+        <div class="chips" id="presets">
+          <button type="button" class="chip" data-a="1"   data-b="20">1–20</button>
+          <button type="button" class="chip" data-a="21"  data-b="40">21–40</button>
+          <button type="button" class="chip" data-a="41"  data-b="60">41–60</button>
+          <button type="button" class="chip" data-a="61"  data-b="80">61–80</button>
+          <button type="button" class="chip" data-a="81"  data-b="100">81–100</button>
+          <button type="button" class="chip" data-a="101" data-b="120">101–120</button>
+          <button type="button" class="chip" data-a="121" data-b="144">121–144</button>
+          <button type="button" class="chip" data-a="1"   data-b="144">全部</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>每日听写词数</h2></div>
+        <div class="seg" id="seg-daily">
+          <button type="button" data-n="5">5</button>
+          <button type="button" data-n="10" class="on">10</button>
+          <button type="button" data-n="15">15</button>
+          <button type="button" data-n="20">20</button>
+          <button type="button" data-n="30">30</button>
+        </div>
+        <div class="field ctrl-plain">
+          <div class="field-label"><span>自定义</span><b id="lbl-daily">10 词</b></div>
+          <div class="field-ctrl">
+            <button class="step" type="button" data-step="daily:-1" aria-label="词数减一">−</button>
+            <input class="range" type="range" id="rng-daily" min="1" max="60" step="1" value="10">
+            <button class="step" type="button" data-step="daily:1" aria-label="词数加一">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card stat-strip">
+        <div><b id="mini-pool">—</b><span>范围内可练</span></div>
+        <div><b id="mini-mastered">—</b><span>已掌握</span></div>
+        <div><b id="mini-today">—</b><span>今日完成</span></div>
+      </div>
+
+      <button class="btn btn-primary btn-lg" id="btn-start" type="button">开始听写</button>
+      <button class="btn btn-ghost" id="btn-stats" type="button">查看统计与错题</button>
+    </section>
+
+    <!-- ============ 听写页 ============ -->
+    <section class="view" id="view-quiz">
+      <div class="quiz-top">
+        <button class="icon-btn" id="btn-quit" type="button" aria-label="退出听写">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="quiz-progress">
+          <div class="quiz-bar"><i id="quiz-bar-fill"></i></div>
+          <span id="quiz-count">0 / 0</span>
+        </div>
+        <button class="icon-btn" id="btn-skip" type="button" aria-label="跳过">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <div class="prompt-card" id="prompt-card">
+        <div class="prompt-tag" id="prompt-lesson">Lesson 1</div>
+        <div class="prompt-zh" id="prompt-zh">—</div>
+        <div class="prompt-pos" id="prompt-pos"></div>
+      </div>
+
+      <!-- 答案显示区：故意不使用 input/textarea，系统输入法无法唤起 -->
+      <div class="answer" id="answer" aria-live="polite">
+        <div class="answer-text" id="answer-text"><span class="caret"></span></div>
+      </div>
+
+      <div class="feedback" id="feedback" hidden>
+        <div class="fb-row"><span class="fb-mark" id="fb-mark"></span><span class="fb-title" id="fb-title"></span></div>
+        <div class="fb-detail" id="fb-detail"></div>
+      </div>
+
+      <div class="kbd" id="kbd" aria-label="虚拟键盘"></div>
+      <div class="kbd-hint">直接用键盘输入英文，按 <b>回车</b> 提交</div>
+
+      <div class="quiz-actions">
+        <button class="btn btn-primary" id="btn-submit" type="button">提交</button>
+        <button class="btn btn-primary is-next" id="btn-next" type="button" hidden>下一个</button>
+      </div>
+    </section>
+
+    <!-- ============ 统计页 ============ -->
+    <section class="view" id="view-stats">
+      <div class="hero">
+        <h1>统计与错题</h1>
+        <p>进度保存在本机，关掉网页也不会丢。</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card tile"><b id="st-today-done">0</b><span>今日完成</span></div>
+        <div class="card tile"><b id="st-today-rate">—</b><span>今日正确率</span></div>
+        <div class="card tile"><b id="st-mastered">0</b><span>累计已掌握</span></div>
+        <div class="card tile"><b id="st-wrong-n">0</b><span>错题记录</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>错题本</h2>
+          <span class="badge" id="wrong-badge">0</span>
+        </div>
+        <div id="wrong-list" class="wrong-list"></div>
+        <div class="row-btns">
+          <button class="btn btn-soft" id="btn-retry-wrong" type="button">只练错题</button>
+          <button class="btn btn-ghost" id="btn-reset" type="button">重置全部进度</button>
+        </div>
+      </div>
+
+      <button class="btn btn-ghost" id="btn-back-home" type="button">返回首页</button>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============ 安装引导 ============ -->
+<div class="sheet-mask" id="install-mask" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="install-title">
+    <div class="sheet-grip"></div>
+    <h2 id="install-title">添加到主屏幕</h2>
+    <p class="sheet-sub">装到桌面后独立全屏运行，像原生 App 一样，断网也能用。</p>
+    <div id="install-body"></div>
+    <button class="btn btn-primary" id="btn-install-go" type="button" hidden>立即安装</button>
+    <button class="btn btn-ghost" id="btn-install-close" type="button">以后再说</button>
+  </div>
+</div>
+
+<!-- ============ 设置 ============ -->
+<div class="sheet-mask" id="settings-mask" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="sheet-grip"></div>
+    <h2 id="settings-title">设置</h2>
+    <label class="switch">
+      <span>听写时显示词性 / 音标提示</span>
+      <input type="checkbox" id="opt-hints" checked>
+    </label>
+    <label class="switch">
+      <span>提交后自动跳到下一题</span>
+      <input type="checkbox" id="opt-auto">
+    </label>
+    <label class="switch">
+      <span>开启提示音效</span>
+      <input type="checkbox" id="opt-sound" checked>
+    </label>
+    <div class="sheet-note">
+      词库：《新概念英语》第一册，648 个单词 / 短语，覆盖 Lesson 1–144。<br>
+      答对即移出词库，答错放回并稍后重新出题。
+    </div>
+    <button class="btn btn-primary" id="btn-settings-close" type="button">完成</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
